@@ -2,11 +2,11 @@ Set-ExecutionPolicy Bypass -Scope Process
 
 #Variables
 $InstallDir = "$env:ProgramData\chocolatey"
-$ChocoInstallScriptUrl = "http://wds01.internal.lvl12.com/chocolatey/install.ps1"
-$ModuleSource = "http://wds01.internal.lvl12.com/modules/cchoco.2.4.1.nupkg"
+$ChocoInstallScriptUrl = "https://github.com/jyonke/chocolatey/raw/master/Install/install.ps1"
+$ModuleSource = "https://github.com/jyonke/chocolatey/raw/master/DSC/cchoco.2.4.1.nupkg"
 $ModuleVersion = "2.4.1.0"
-$SourcesConfig = 'http://wds01.internal.lvl12.com/chocolatey/sources.psd1'
-$PackageConfig = 'http://wds01.internal.lvl12.com/chocolatey/global-config.psd1'
+$SourcesConfig = 'https://github.com/jyonke/chocolatey/raw/master/DSC/sources/sources.psd1'
+$PackageConfig = 'https://github.com/jyonke/chocolatey/raw/master/DSC/config/Global-Configuration.psd1'
 
 #Confirm cChoco is installed and define $ModuleBase
 $Test = 'Get-Module -ListAvailable -Name cChoco | Where-Object {$_.Version -eq $ModuleVersion}'

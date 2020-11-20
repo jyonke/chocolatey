@@ -31,7 +31,7 @@
 #specifically use the API to get the latest version (below)
 $url = ''
 $env:chocolateyUseWindowsCompression = 'true'
-$env:chocolateyDownloadUrl = 'http://wds01.internal.lvl12.com/chocolatey/chocolatey.0.10.15.nupkg'
+$env:chocolateyDownloadUrl = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.10.15.nupkg'
 
 
 $chocolateyVersion = $env:chocolateyVersion
