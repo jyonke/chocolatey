@@ -8,8 +8,8 @@ param (
     [switch]
     $Cache
 )
-
-Set-ExecutionPolicy Bypass -Scope Process
+$CurrentExecutionPolicy = Get-ExecutionPolicy
+$null = Set-ExecutionPolicy Bypass -Scope CurrentUser -ErrorAction Stop
 
 Start-Transcript -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.log")
 
@@ -168,4 +168,5 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object {$_.Name 
         }
     }
 }
+$null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
 Stop-Transcript
