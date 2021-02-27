@@ -3,15 +3,49 @@ param (
     [Parameter()]
     [string]
     $SettingsURI,
-    # Used Cached bootstrap settings
+    # Use Cached bootstrap settings
     [Parameter()]
     [switch]
     $Cache
 )
+#Default Variables
+$InstallDir = "$env:ProgramData\chocolatey"
+$ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
+$ModuleVersion = "2.4.1.0"
+
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 $null = Set-ExecutionPolicy Bypass -Scope CurrentUser -ErrorAction Stop
 
-Start-Transcript -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.log")
+try {
+    Start-Transcript -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.log")
+    $Transcript = $true
+}
+catch {
+    Write-Warning "Error Starting Log"
+    $_.Exception.Message
+}
+
+#Required Inline Functions
+function New-PSCredential {
+    [CmdletBinding()]
+    param (
+        # User Name
+        [Parameter(Mandatory = $true)]
+        [string]
+        $User,
+        # Encrypted Password
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Password,
+        # Key File
+        [Parameter(Mandatory = $true)]
+        [string]
+        $KeyFile
+    )
+    $key = Get-Content $KeyFile
+    [pscredential]$PSCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, ($Password | ConvertTo-SecureString -Key $key)
+    return $PSCredential
+}
 
 #Settings
 if ($SettingsURI) {    
@@ -41,11 +75,9 @@ elseif ($Cache -and (Test-Path (Join-Path "$env:SystemRoot\temp" "bootstrap-ccho
 
 }
 else {
-    Write-Warning "No settings defined, using default"
-    $InstallDir = "$env:ProgramData\chocolatey"
-    $ChocoInstallScriptUrl = 'https://chocolatey.org/install.ps1'
-    $ModuleVersion = "2.4.1.0"
+    Write-Warning "No settings defined, using all default"
 }
+
 Write-Output "SettingsURI = $SettingsURI"
 Write-Output "InstallDir = $InstallDir"
 Write-Output "ChocoInstallScriptUrl = $ChocoInstallScriptUrl"
@@ -141,6 +173,13 @@ if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
         $Configuration = $_
         Write-Output $Configuration
         Write-Output "-------------------------------"
+        #Create PSCredential from key pair if defined
+        if ($Configuration.Password) {
+            $Configuration.Credentials = New-PSCredential -User $Configuration.User -Password $Configuration.Password -KeyFile $Configuration.KeyFile
+            $Configuration.Remove("User")
+            $Configuration.Remove("Password")
+            $Configuration.Remove("KeyFile")
+        }
         if (-not(Test-TargetResource @Configuration )) {
             Set-TargetResource @Configuration
         }
@@ -151,12 +190,11 @@ else {
     Write-Warning (Join-Path "$InstallDir\config" "sources.psd1")
 }
 
-
 #Process Configuration
 Write-Output "cChocoPackageInstall: Validating Chocolatey Packages are Installed"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
-Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object {$_.Name -ne "sources.psd1"} | ForEach-Object {
+Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -ne "sources.psd1" } | ForEach-Object {
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Configurations | ForEach-Object {
@@ -168,5 +206,9 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object {$_.Name 
         }
     }
 }
+
+#Cleanup
 $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
-Stop-Transcript
+if ($Transcript) {
+    Stop-Transcript -ErrorAction SilentlyContinue   
+}
