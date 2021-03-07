@@ -14,7 +14,12 @@ $ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/ma
 $ModuleVersion = "2.4.1.0"
 
 $CurrentExecutionPolicy = Get-ExecutionPolicy
-$null = Set-ExecutionPolicy Bypass -Scope CurrentUser -ErrorAction Stop
+try {
+    $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
+}
+catch {
+    Write-Warning "Error Changing Execution Policy"
+}
 
 try {
     Start-Transcript -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.log")
@@ -22,7 +27,7 @@ try {
 }
 catch {
     Write-Warning "Error Starting Log"
-    $_.Exception.Message
+    #$_.Exception.Message
 }
 
 #Required Inline Functions
@@ -46,6 +51,9 @@ function New-PSCredential {
     [pscredential]$PSCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, ($Password | ConvertTo-SecureString -Key $key)
     return $PSCredential
 }
+
+#Evaluate VPN Status
+$VPNStatus = Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'pangp|cisco|juniper|vpn' -and $_.Status -eq 'Up' }
 
 #Settings
 if ($SettingsURI) {    
@@ -170,9 +178,9 @@ if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "sources.psd1")
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Configurations | ForEach-Object {
+        $DSC = $null
         $Configuration = $_
-        Write-Output $Configuration
-        Write-Output "-------------------------------"
+        $Object = [PSCustomObject]$Configuration
         #Create PSCredential from key pair if defined
         if ($Configuration.Password) {
             $Configuration.Credentials = New-PSCredential -User $Configuration.User -Password $Configuration.Password -KeyFile $Configuration.KeyFile
@@ -181,8 +189,13 @@ if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
             $Configuration.Remove("KeyFile")
         }
         if (-not(Test-TargetResource @Configuration )) {
-            Set-TargetResource @Configuration
+            $DSC = Set-TargetResource @Configuration
         }
+        else {
+            $DSC = $true
+        }
+        $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
+        $Object
     }
 }
 else {
@@ -198,12 +211,38 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Configurations | ForEach-Object {
+        $DSC = $null
         $Configuration = $_
-        Write-Output $Configuration
-        Write-Output "-------------------------------"
-        if (-not(Test-TargetResource @Configuration )) {
-            Set-TargetResource @Configuration
+        $Object = [PSCustomObject]$Configuration
+        #Evaluate VPN Restrictions
+        if ($null -ne $Configuration.VPN) {
+            if ($Configuration.VPN -eq $false -and $VPNStatus) {
+                $Configuration.Remove("VPN")
+                $Object | Add-Member -MemberType NoteProperty -Name Warning -Value "Configuration restricted when VPN is connected"
+                $DSC = Test-TargetResource @Configuration
+                $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
+                $Object        
+                return
+            }
+            if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
+                $Configuration.Remove("VPN")
+                $Object | Add-Member -MemberType NoteProperty -Name Warning -Value "Configuration restricted when VPN is not established"
+                $DSC = Test-TargetResource @Configuration
+                $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
+                $Object
+                return
+            }
+            $Configuration.Remove("VPN")
         }
+        
+        if (-not(Test-TargetResource @Configuration )) {
+            $DSC = Set-TargetResource @Configuration
+        }
+        else {
+            $DSC = $true
+        }
+        $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
+        $Object
     }
 }
 
