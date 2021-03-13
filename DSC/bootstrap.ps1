@@ -158,7 +158,7 @@ if ($PackageConfig) {
 }
 
 #Confirm chocolatey is installed
-Write-Output "cChocoInstaller: Validating Chocolatey is installed"
+Write-Output "cChocoInstaller:Validating Chocolatey is installed"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoInstaller")
 Import-Module $ModulePath
 $Configuration = @{
@@ -170,7 +170,7 @@ if (-not(Test-TargetResource @Configuration )) {
 }
 
 #Confirm chocolatey sources are setup correctly
-Write-Output "cChocoSource: Validating Chocolatey Sources are Setup"
+Write-Output "cChocoSource:Validating Chocolatey Sources are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
 Import-Module $ModulePath
  
@@ -183,17 +183,25 @@ if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
         $Object = [PSCustomObject]$Configuration
         #Create PSCredential from key pair if defined
         if ($Configuration.Password) {
-            $Configuration.Credentials = New-PSCredential -User $Configuration.User -Password $Configuration.Password -KeyFile $Configuration.KeyFile
+            #Validate Keyfile
+            if (-not(Test-Path -Path $Configuration.KeyFile)) {
+                Write-Warning "Keyfile not accessible - $($Configuration.KeyFile)"
+                return
+            }
+            try {
+                $Configuration.Credentials = New-PSCredential -User $Configuration.User -Password $Configuration.Password -KeyFile $Configuration.KeyFile
+            }
+            catch {
+                Write-Warning "Can not create PSCredential"
+                return
+            }
             $Configuration.Remove("User")
             $Configuration.Remove("Password")
             $Configuration.Remove("KeyFile")
         }
-        if (-not(Test-TargetResource @Configuration )) {
-            $DSC = Set-TargetResource @Configuration
-        }
-        else {
-            $DSC = $true
-        }
+        $DSC = Set-TargetResource @Configuration
+        $DSC = Test-TargetResource @Configuration
+        
         $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
         $Object
     }
@@ -204,7 +212,7 @@ else {
 }
 
 #Process Configuration
-Write-Output "cChocoPackageInstall: Validating Chocolatey Packages are Installed"
+Write-Output "cChocoPackageInstall:Validating Chocolatey Sources are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
 Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -ne "sources.psd1" } | ForEach-Object {
@@ -234,12 +242,9 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
             }
             $Configuration.Remove("VPN")
         }
-        
-        if (-not(Test-TargetResource @Configuration )) {
+        $DSC = Test-TargetResource @Configuration
+        if (-not($DSC)) {
             $DSC = Set-TargetResource @Configuration
-        }
-        else {
-            $DSC = $true
         }
         $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
         $Object
