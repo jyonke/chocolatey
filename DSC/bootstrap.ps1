@@ -68,6 +68,7 @@ if ($SettingsURI) {
     $ModuleVersion = $settings.ModuleVersion
     $SourcesConfig = $settings.SourcesConfig
     $PackageConfig = $settings.PackageConfig
+    $ChocoConfig = $settings.ChocoConfig
 }
 elseif ($Cache -and (Test-Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1"))) {
     $SettingsFile = Import-PowerShellDataFile -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
@@ -80,25 +81,27 @@ elseif ($Cache -and (Test-Path (Join-Path "$env:SystemRoot\temp" "bootstrap-ccho
     $ModuleVersion = $settings.ModuleVersion
     $SourcesConfig = $settings.SourcesConfig
     $PackageConfig = $settings.PackageConfig
+    $ChocoConfig = $settings.ChocoConfig
 
 }
 else {
     Write-Warning "No settings defined, using all default"
 }
 
-Write-Output "SettingsURI = $SettingsURI"
-Write-Output "InstallDir = $InstallDir"
-Write-Output "ChocoInstallScriptUrl = $ChocoInstallScriptUrl"
-Write-Output "ModuleSource = $ModuleSource"
-Write-Output "ModuleVersion = $ModuleVersion"
-Write-Output "SourcesConfig = $SourcesConfig"
-Write-Output "PackageConfig = $PackageConfig"
+Write-Verbose "SettingsURI = $SettingsURI"
+Write-Verbose "InstallDir = $InstallDir"
+Write-Verbose "ChocoInstallScriptUrl = $ChocoInstallScriptUrl"
+Write-Verbose "ModuleSource = $ModuleSource"
+Write-Verbose "ModuleVersion = $ModuleVersion"
+Write-Verbose "SourcesConfig = $SourcesConfig"
+Write-Verbose "PackageConfig = $PackageConfig"
+Write-Verbose "ConfigConfig = $ChocoConfig"
 
 #Confirm cChoco is installed and define $ModuleBase
 $Test = 'Get-Module -ListAvailable -Name cChoco | Where-Object {$_.Version -eq $ModuleVersion}'
 if (-not(Invoke-Expression -Command $Test)) {
-    Write-Output "Installing cChoco - version $ModuleVersion"
-    Write-Output "Source: $ModuleSource"
+    Write-Verbose "Installing cChoco - version $ModuleVersion"
+    Write-Verbose "Source: $ModuleSource"
     $ModuleInstalled = $false
     if ($ModuleSource) {
         try {
@@ -114,7 +117,7 @@ if (-not(Invoke-Expression -Command $Test)) {
     }
     else {
         try {
-            Write-Output "Attemping to install from PowerShell Gallery"
+            Write-Verbose "Attemping to install from PowerShell Gallery"
             $null = Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false -ErrorAction SilentlyContinue
             Install-Module cChoco -RequiredVersion $ModuleVersion -Confirm:$false -Force -ErrorAction Stop
         }
@@ -141,12 +144,16 @@ else {
     exit -1
 }
 
+#Copy Config Config?
+if ($ChocoConfig) {
+    $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
+    Start-BitsTransfer -Source $ChocoConfig -Destination (Join-Path "$InstallDir\config" "config.psd1")
+}
+
 #Copy Sources Config
 if ($SourcesConfig) {
     $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    $SourcesConfig | ForEach-Object {
-        Start-BitsTransfer -Source $_ -Destination (Join-Path "$InstallDir\config" "sources.psd1")
-    }
+    Start-BitsTransfer -Source $SourcesConfig -Destination (Join-Path "$InstallDir\config" "sources.psd1")
 }
 
 #Copy Package Config
@@ -157,98 +164,174 @@ if ($PackageConfig) {
     } 
 }
 
-#Confirm chocolatey is installed
-Write-Output "cChocoInstaller:Validating Chocolatey is installed"
+#Start-DSCConfiguation
+
+#cChocoInstaller
+Write-Verbose "cChocoInstaller:Validating Chocolatey is installed"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoInstaller")
 Import-Module $ModulePath
 $Configuration = @{
     InstallDir            = $InstallDir
     ChocoInstallScriptUrl = $ChocoInstallScriptUrl
 }
-if (-not(Test-TargetResource @Configuration )) {
-    Set-TargetResource @Configuration   
+$Object = [PSCustomObject]@{
+    Name                  = 'chocolatey'
+    DSC                   = $null
+    InstallDir            = $InstallDir
+    ChocoInstallScriptUrl = $ChocoInstallScriptUrl
+}
+$DSC = $null
+$DSC = Test-TargetResource @Configuration
+if (-not($DSC)) {
+    $null = Set-TargetResource @Configuration
+    $DSC = Test-TargetResource @Configuration
 }
 
-#Confirm chocolatey sources are setup correctly
-Write-Output "cChocoSource:Validating Chocolatey Sources are Setup"
+$Object.DSC = $DSC
+Write-Output $Object | Select-Object * | Format-Table -AutoSize
+
+#cChocoConfig
+Write-Verbose "cChocoConfig:Validating Chocolatey Configurations are Setup"
+$ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
+Import-Module $ModulePath
+ 
+if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
+    $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "config.psd1")
+    $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+    $Status = @()
+    $Configurations | ForEach-Object {
+        $DSC = $null
+        $Configuration = $_
+        $Object = [PSCustomObject]@{
+            ConfigName = $Configuration.ConfigName
+            DSC        = $null
+            Ensure     = $Configuration.Ensure
+            Value      = $Configuration.Value
+        }
+        $DSC = Test-TargetResource @Configuration
+        if (-not($DSC)) {
+            $null = Set-TargetResource @Configuration
+            $DSC = Test-TargetResource @Configuration
+        }
+        
+        $Object.DSC = $DSC
+        $Status += $Object
+    }
+    Write-Output $Status | Select-Object * | Format-Table -AutoSize
+}
+else {
+    Write-Warning "File not found, configuration will not be modified"
+    Write-Warning (Join-Path "$InstallDir\config" "config.psd1")
+}
+
+#cChocoSource
+Write-Verbose "cChocoSource:Validating Chocolatey Sources are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
 Import-Module $ModulePath
  
 if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "sources.psd1")
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+    $Status = @()
     $Configurations | ForEach-Object {
         $DSC = $null
         $Configuration = $_
-        $Object = [PSCustomObject]$Configuration
+        $Object = [PSCustomObject]@{
+            Name     = $Configuration.Name
+            Priority = $Configuration.Priority
+            DSC      = $null
+            Source   = $Configuration.Source
+            Ensure   = $Configuration.Ensure
+            User     = $Configuration.User
+            KeyFile  = $Configuration.KeyFile
+            Warning = $null
+        }
+
         #Create PSCredential from key pair if defined
         if ($Configuration.Password) {
             #Validate Keyfile
             if (-not(Test-Path -Path $Configuration.KeyFile)) {
-                Write-Warning "Keyfile not accessible - $($Configuration.KeyFile)"
+                $Object.Warning = "Keyfile not accessible"
+                $Status += $Object
                 return
             }
             try {
                 $Configuration.Credentials = New-PSCredential -User $Configuration.User -Password $Configuration.Password -KeyFile $Configuration.KeyFile
             }
             catch {
-                Write-Warning "Can not create PSCredential"
+                $Object.Warning = "Can not create PSCredential"
+                $Status += $Object
                 return
             }
             $Configuration.Remove("User")
             $Configuration.Remove("Password")
             $Configuration.Remove("KeyFile")
         }
-        $DSC = Set-TargetResource @Configuration
+        $null = Set-TargetResource @Configuration
         $DSC = Test-TargetResource @Configuration
         
-        $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
-        $Object
+        $Object.DSC = $DSC
+        $Status += $Object
     }
+    Write-Output $Status | Select-Object * | Format-Table -AutoSize
 }
 else {
     Write-Warning "File not found, sources will not be modified"
     Write-Warning (Join-Path "$InstallDir\config" "sources.psd1")
 }
 
-#Process Configuration
-Write-Output "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
+#cChocoPackageInstall
+Write-Verbose "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
-Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -ne "sources.psd1" } | ForEach-Object {
+Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -ne "sources.psd1" -and $_.Name -ne "config.psd1" } | ForEach-Object {
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+    $Status = @()
     $Configurations | ForEach-Object {
         $DSC = $null
         $Configuration = $_
-        $Object = [PSCustomObject]$Configuration
+        $Object = [PSCustomObject]@{
+            Name        = $Configuration.Name
+            Version     = $Configuration.Version
+            DSC         = $null
+            Ensure      = $Configuration.Ensure
+            Source      = $Configuration.Source
+            AutoUpgrade = $Configuration.AutoUpgrade
+            VPN         = $Configuration.VPN
+            Params      = $Configuration.Params
+            ChocoParams = $Configuration.ChocoParams
+            Warning     = $null
+        }
         #Evaluate VPN Restrictions
         if ($null -ne $Configuration.VPN) {
             if ($Configuration.VPN -eq $false -and $VPNStatus) {
                 $Configuration.Remove("VPN")
-                $Object | Add-Member -MemberType NoteProperty -Name Warning -Value "Configuration restricted when VPN is connected"
+                $Object.Warning = "Configuration restricted when VPN is connected"
                 $DSC = Test-TargetResource @Configuration
-                $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
-                $Object        
+                $Object.DSC = $DSC
+                $Status += $Object        
                 return
             }
             if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
                 $Configuration.Remove("VPN")
-                $Object | Add-Member -MemberType NoteProperty -Name Warning -Value "Configuration restricted when VPN is not established"
+                $Object.Warning = "Configuration restricted when VPN is not established"
                 $DSC = Test-TargetResource @Configuration
-                $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
-                $Object
+                $Object.DSC = $DSC
+                $Status += $Object
                 return
             }
             $Configuration.Remove("VPN")
         }
         $DSC = Test-TargetResource @Configuration
         if (-not($DSC)) {
-            $DSC = Set-TargetResource @Configuration
+            $null = Set-TargetResource @Configuration
+            $DSC = Test-TargetResource @Configuration
         }
-        $Object | Add-Member -MemberType NoteProperty -Name DSC -Value $DSC
-        $Object
+        $Object.DSC = $DSC
+        $Status += $Object
     }
+    Write-Output $Status | Select-Object * | Format-Table -AutoSize
 }
 
 #Cleanup
