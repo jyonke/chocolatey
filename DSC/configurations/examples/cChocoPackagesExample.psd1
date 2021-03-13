@@ -37,6 +37,8 @@
         Name        = "git.install"
         Ensure      = 'Present'
         AutoUpgrade = $True
+        chocoParams = '--execution-timeout 0'
+        Source      = 'https://chocolatey.org/api/v2/'
     }
     "adobeair"                           = @{
         Name        = "adobeair"

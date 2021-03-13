@@ -24,7 +24,8 @@
     }
     "chocolatey" = @{
         Name     = "chocolatey"
+        Priority = 10
         Source   = 'https://chocolatey.org/api/v2/'
-        Ensure   = 'Absent'
+        Ensure   = 'Present'
     }
 }

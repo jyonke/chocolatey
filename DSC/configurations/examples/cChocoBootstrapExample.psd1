@@ -18,12 +18,12 @@
         ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
     }
     'cchoco-config' = @{
-        ModuleSource  = 'https://github.com/jyonke/chocolatey/raw/master/DSC/nupkg/cchoco.2.4.1.nupkg'
-        ModuleVersion = '2.4.1.0'
-        SourcesConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/sources/sources.psd1'
+        ModuleSource  = 'https://github.com/jyonke/chocolatey/raw/master/DSC/nupkg/cchoco.2.5.0.nupkg'
+        ModuleVersion = '2.5.0.0'
+        SourcesConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoSourcesExample.psd1'
+        ChocoConfig   = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoConfigExample.psd1'
         PackageConfig = @(
-            'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/Global-Configuration.psd1'
-            'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/Client-Configuration.psd1'
+            'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoPackagesExample.psd1'
         )
     }
 }
