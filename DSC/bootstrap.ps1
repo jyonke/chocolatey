@@ -11,7 +11,7 @@ param (
 #Default Variables
 $InstallDir = "$env:ProgramData\chocolatey"
 $ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
-$ModuleVersion = "2.4.1.0"
+$ModuleVersion = "2.5.0.0"
 
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 try {
@@ -212,7 +212,7 @@ else {
 }
 
 #Process Configuration
-Write-Output "cChocoPackageInstall:Validating Chocolatey Sources are Setup"
+Write-Output "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
 Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -ne "sources.psd1" } | ForEach-Object {
