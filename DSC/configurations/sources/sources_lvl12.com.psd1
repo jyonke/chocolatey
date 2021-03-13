@@ -16,7 +16,7 @@
     "nuget.lvl12.com"  = @{
         Name     = "nuget.lvl12.com"
         Priority = 0
-        Source   = "https://nuget.lvl12.com/repository/nuget-hosted/"
+        Source   = "https://nuget.lvl12.com/repository/nuget-group/"
         Ensure   = "Present"
         User     = 'public'
         Password = '76492d1116743f0423413b16050a5345MgB8ADkAdwBKAHkASgA5AFAAOAB1AEIAZAB5AEkAeAAwAEQAegBaAFgASQAxAFEAPQA9AHwAOQA0ADkANwBlADUAOABkADIAZQBlAGMANgA4AGMAZQBjAGEAMwA3AGIANgA3ADAAMgA0ADAAMgAzADcAMQA1AA=='
