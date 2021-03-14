@@ -57,7 +57,7 @@ $VPNStatus = Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'pan
 
 #Settings
 if ($SettingsURI) {    
-    Start-BitsTransfer -Destination (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1") -Source $SettingsURI -ErrorAction Stop
+    Invoke-WebRequest -Uri $SettingsURI -UseBasicParsing -OutFile (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
     $SettingsFile = Import-PowerShellDataFile -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
     $Settings = $SettingsFile | ForEach-Object { $_.Keys | ForEach-Object { $SettingsFile.$_ } } 
     
@@ -107,7 +107,7 @@ if (-not(Invoke-Expression -Command $Test)) {
         try {
             $DownloadFile = (Join-Path $env:TEMP "cChoco.$ModuleVersion.nupkg.zip")
             $Destination = (Join-Path "$env:ProgramFiles\WindowsPowerShell\Modules" "cChoco\$ModuleVersion")
-            Start-BitsTransfer -Destination $DownloadFile -Source $ModuleSource -ErrorAction Stop
+            Invoke-WebRequest -Uri $ModuleSource -UseBasicParsing -OutFile $DownloadFile
             $null = New-Item -ItemType Directory -Path $Destination -Force -ErrorAction SilentlyContinue
             Expand-Archive -Path $DownloadFile -DestinationPath $Destination -Force -ErrorAction Stop
         }
@@ -147,20 +147,20 @@ else {
 #Copy Config Config?
 if ($ChocoConfig) {
     $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    Start-BitsTransfer -Source $ChocoConfig -Destination (Join-Path "$InstallDir\config" "config.psd1")
+    Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" "config.psd1")
 }
 
 #Copy Sources Config
 if ($SourcesConfig) {
     $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    Start-BitsTransfer -Source $SourcesConfig -Destination (Join-Path "$InstallDir\config" "sources.psd1")
+    Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" "sources.psd1")
 }
 
 #Copy Package Config
 if ($PackageConfig) {
     $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
     $PackageConfig | ForEach-Object {
-        Start-BitsTransfer -Source $_ -Destination (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
+        Invoke-WebRequest -Uri $_ -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
     } 
 }
 
