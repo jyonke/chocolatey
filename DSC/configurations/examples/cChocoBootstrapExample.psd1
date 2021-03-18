@@ -22,6 +22,7 @@
         ModuleVersion = '2.5.0.0'
         SourcesConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoSourcesExample.psd1'
         ChocoConfig   = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoConfigExample.psd1'
+        FeatureConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoFeatureExample.psd1'
         PackageConfig = @(
             'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoPackagesExample.psd1'
         )
