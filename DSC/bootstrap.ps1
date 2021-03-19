@@ -3,15 +3,39 @@ param (
     [Parameter()]
     [string]
     $SettingsURI,
-    # Use Cached bootstrap settings
+    # Chocolatey Installation Directory
     [Parameter()]
-    [switch]
-    $Cache
+    [string]
+    $InstallDir = "$env:ProgramData\chocolatey",
+    # Chocolatey Installation Script URL
+    [Parameter()]
+    [string]
+    $ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1',
+    # URL to required cCHoco nupkg
+    [Parameter()]
+    [string]
+    $ModuleSource = 'https://github.com/jyonke/chocolatey/raw/master/DSC/nupkg/cchoco.2.5.0.nupkg',
+    # cChoco Module Version
+    [Parameter()]
+    [string]
+    $ModuleVersion = "2.5.0.0",
+    # URL to cChoco sources configuration file
+    [Parameter()]
+    [string]
+    $SourcesConfig,
+    # URL to cCHoco packages
+    [Parameter()]
+    [array]
+    $PackageConfig,
+    # URL to cChoco Chocolatey configuration file
+    [Parameter()]
+    [string]
+    $ChocoConfig,
+    # URL to cChoco Chocolatey features configuration file
+    [Parameter()]
+    [string]
+    $FeatureConfig
 )
-#Default Variables
-$InstallDir = "$env:ProgramData\chocolatey"
-$ChocoInstallScriptUrl = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
-$ModuleVersion = "2.5.0.0"
 
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 try {
@@ -23,8 +47,8 @@ catch {
 
 try {
     $LogPath = (Join-Path $InstallDir "logs")
-    $null = New-Item -ItemType Directory -Path $LogPath -ErrorAction SilentlyContinue
-    Start-Transcript -Path (Join-Path $LogPath "cChoco.log")
+    $null = New-Item -ItemType Directory -Path $LogPath -Force -ErrorAction SilentlyContinue
+    $null = Start-Transcript -Path (Join-Path $LogPath "cChoco.log")
     $Transcript = $true
 }
 catch {
@@ -72,24 +96,6 @@ if ($SettingsURI) {
     $ChocoConfig = $settings.ChocoConfig
     $FeatureConfig = $settings.FeatureConfig
 }
-elseif ($Cache -and (Test-Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1"))) {
-    $SettingsFile = Import-PowerShellDataFile -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
-    $Settings = $SettingsFile | ForEach-Object { $_.Keys | ForEach-Object { $SettingsFile.$_ } } 
-    
-    #Variables
-    $InstallDir = $Settings.InstallDir
-    $ChocoInstallScriptUrl = $Settings.ChocoInstallScriptUrl
-    $ModuleSource = $Settings.ModuleSource
-    $ModuleVersion = $settings.ModuleVersion
-    $SourcesConfig = $settings.SourcesConfig
-    $PackageConfig = $settings.PackageConfig
-    $ChocoConfig = $settings.ChocoConfig
-    $FeatureConfig = $settings.FeatureConfig
-
-}
-else {
-    Write-Warning "No settings defined, using all default"
-}
 
 Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
 Write-Host -ForegroundColor Yellow      'cCHoco Bootstrap Settings' -NoNewline
@@ -112,7 +118,6 @@ Write-Host -ForegroundColor Gray        'ChocoConfig:' -NoNewline
 Write-Host -ForegroundColor White       "$ChocoConfig                               "
 Write-Host -ForegroundColor Gray        'FeatureConfig:' -NoNewline
 Write-Host -ForegroundColor White       "$FeatureConfig                             "
-
 
 #Confirm cChoco is installed and define $ModuleBase
 $Test = 'Get-Module -ListAvailable -Name cChoco | Where-Object {$_.Version -eq $ModuleVersion}'
@@ -405,10 +410,10 @@ else {
 Write-Verbose "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
+$Status = @()
 Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | ForEach-Object {
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
-    $Status = @()
     $Configurations | ForEach-Object {
         $DSC = $null
         $Configuration = $_
@@ -452,37 +457,40 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
         $Object.DSC = $DSC
         $Status += $Object
     }
-    #Remove Module for Write-Host limitations
-    Remove-Module "cChocoPackageInstall"
-
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoPackageInstall' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
-    $Status | ForEach-Object {
-        Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Name)             "
-        Write-Host -ForegroundColor Gray        'Version:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Version)                    "
-        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.DSC)                 "
-        Write-Host -ForegroundColor Gray        'Source:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Source)             "
-        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ensure)                    "
-        Write-Host -ForegroundColor Gray        'AutoUpgrade:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.AutoUpgrade)                 "
-        Write-Host -ForegroundColor Gray        'VPN:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.VPN)             "
-        Write-Host -ForegroundColor Gray        'Params:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Params)                    "
-        Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
-        Write-Host -ForegroundColor DarkCyan    '========================='
-    }
 }
+#Remove Module for Write-Host limitations
+Remove-Module "cChocoPackageInstall"
+
+Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
+Write-Host -ForegroundColor Yellow      'cChocoPackageInstall' -NoNewline
+Write-Host -ForegroundColor DarkCyan    '========================='
+$Status | ForEach-Object {
+    Write-Host -ForegroundColor Gray        'Name:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Name)             "
+    Write-Host -ForegroundColor Gray        'Version:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Version)                    "
+    Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.DSC)                 "
+    Write-Host -ForegroundColor Gray        'Source:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Source)             "
+    Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Ensure)                    "
+    Write-Host -ForegroundColor Gray        'AutoUpgrade:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.AutoUpgrade)                 "
+    Write-Host -ForegroundColor Gray        'VPN:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.VPN)             "
+    Write-Host -ForegroundColor Gray        'Params:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Params)                    "
+    Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
+    Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Warning)                    "
+    Write-Host -ForegroundColor DarkCyan    '========================='
+}
+
 
 #Cleanup
 $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
 if ($Transcript) {
-    Stop-Transcript -ErrorAction SilentlyContinue   
+    $null = Stop-Transcript -ErrorAction SilentlyContinue   
 }
