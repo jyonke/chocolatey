@@ -1,3 +1,21 @@
+<#
+.SYNOPSIS
+    Bootstrap Chocolatey and cChoco DSC Resource Module 
+.DESCRIPTION
+    Long description
+.EXAMPLE
+    bootstrap.ps1 -SettingsURI 'http://contoso.com/bootstrap-settings.psd1'
+.EXAMPLE
+    bootstrap.ps1 -PackageConfig 'http://contoso.com/cchoco-packages.psd1' -NoCache
+.INPUTS
+    None
+.OUTPUTS
+    None
+.NOTES
+    Script to automate the installtion of the PowerShell DSC Module cCHoco and Chocolatey, and then process all defined desired states in your configuration files.
+    https://github.com/jyonke/chocolatey
+#>
+
 [CmdletBinding()]
 param (
     [Parameter()]
@@ -34,7 +52,11 @@ param (
     # URL to cChoco Chocolatey features configuration file
     [Parameter()]
     [string]
-    $FeatureConfig
+    $FeatureConfig,
+    # Purge Localay Cached psd1's
+    [Parameter()]
+    [switch]
+    $NoCache
 )
 
 $CurrentExecutionPolicy = Get-ExecutionPolicy
@@ -166,6 +188,10 @@ else {
     exit -1
 }
 
+#Clean config folders of all cached PSD1's
+if ($NoCache) {
+    Get-ChildItem -Path (Join-Path $InstallDir "config") -Filter *.psd1 | Remove-Item -Recurse -Force
+}
 #Copy Config Config?
 if ($ChocoConfig) {
     $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
