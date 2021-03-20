@@ -11,15 +11,19 @@ You can pass the following key/value pair in your bootstrap configuration file:
 * `SourcesConfig`           - Path to the PowerShell Data File (PSD1) that defines your source configurations. (e.g. `SourcesConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoSourcesExample.psd1'`);
 * `ChocoConfig`             - Path to the PowerShell Data File (PSD1) that defines your Chocolatey configurations. (e.g. `ChocoConfig   = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoConfigExample.psd1'`);
 * `SourcesConfig`           - Path to the PowerShell Data File (PSD1) that defines your array of package configurations. (e.g. `packageConfig = @('https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoPackagesExample.psd1')`);
-
+* `NoCache`                - Removes cached configuration files prior to processing. 
 
 # Example One line Install 
 `Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iwr https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/bootstrap.ps1 -UseBasicParsing -OutFile "$env:TEMP\bootstrap.ps1"; &"$env:TEMP\bootstrap.ps1" -SettingsURI 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoBootstrapExample.psd1'`;
 
 # cChoco Chocolatey Configuration
-* `ConfigName`  - The Chocolatey feature name. (e.g. `webRequestTimeoutSeconds`);
+* `ConfigName`  - The Chocolatey configuration name. (e.g. `webRequestTimeoutSeconds`);
 * `Ensure`      - Define desired state. Defaults to `Present`. (Valid options `Present,Absent`);
 * `Value`       - Value to set related to defined configuration. (e.g. `60`);
+
+# cChoco Chocolatey Features
+* `FeatureName` - The Chocolatey feature name. (e.g. `allowGlobalConfirmation`);
+* `Ensure`      - Define desired state. Defaults to `Present`. (Valid options `Present,Absent`);
 
 # cChoco Chocolatey Package
 * `Name`        - The package name. (e.g. `adobereader`);
