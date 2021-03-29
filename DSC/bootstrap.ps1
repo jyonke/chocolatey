@@ -59,24 +59,6 @@ param (
     $NoCache
 )
 
-$CurrentExecutionPolicy = Get-ExecutionPolicy
-try {
-    $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
-}
-catch {
-    Write-Warning "Error Changing Execution Policy"
-}
-
-try {
-    $LogPath = (Join-Path $InstallDir "logs")
-    $null = New-Item -ItemType Directory -Path $LogPath -Force -ErrorAction SilentlyContinue
-    $null = Start-Transcript -Path (Join-Path $LogPath "cChoco.log")
-    $Transcript = $true
-}
-catch {
-    Write-Warning "Error Starting Log"
-}
-
 #Required Inline Functions
 function New-PSCredential {
     [CmdletBinding()]
@@ -97,6 +79,34 @@ function New-PSCredential {
     $key = Get-Content $KeyFile
     [pscredential]$PSCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, ($Password | ConvertTo-SecureString -Key $key)
     return $PSCredential
+}
+
+Function RotateLog{
+    if (Test-Path -Path (Join-Path $LogPath "cChoco.log")) {
+        $LogFile = Get-Item (Join-Path $LogPath "cChoco.log")
+        if ($LogFile.Length -ge 10MB) {
+            Copy-Item -Path (Join-Path $LogPath "cChoco.log") -Destination (Join-Path $LogPath "cChoco.1.log")
+            Clear-Content -Path (Join-Path $LogPath "cChoco.log") -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+$CurrentExecutionPolicy = Get-ExecutionPolicy
+try {
+    $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
+}
+catch {
+    Write-Warning "Error Changing Execution Policy"
+}
+
+try {
+    $LogPath = (Join-Path $InstallDir "logs")
+    $null = New-Item -ItemType Directory -Path $LogPath -Force -ErrorAction SilentlyContinue
+    $null = Start-Transcript -Path (Join-Path $LogPath "cChoco.log") -Append
+    $Transcript = $true
+}
+catch {
+    Write-Warning "Error Starting Log"
 }
 
 #Evaluate VPN Status
@@ -520,3 +530,4 @@ $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAct
 if ($Transcript) {
     $null = Stop-Transcript -ErrorAction SilentlyContinue   
 }
+RotateLog
