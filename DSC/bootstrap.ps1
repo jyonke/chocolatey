@@ -91,6 +91,25 @@ Function RotateLog{
     }
 }
 
+function Test-PathEx {
+    param (
+        # Path
+        [Parameter(Mandatory = $true)]
+        [string]
+        $Path
+    )
+    $PathType = $null
+    $URLRegEx = '^(http:\/\/www\.|https:\/\/www\.|http:\/\/|https:\/\/)?[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,5}(:[0-9]{1,5})?(\/.*)?$'
+
+    if (Test-Path -Path $Path -IsValid) {
+        $PathType = 'FileSystem'
+    }
+    if ($Path -match $URLRegEx) {
+        $PathType = 'URL'
+    }
+    $PathType
+}
+
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 try {
     $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
@@ -113,8 +132,12 @@ catch {
 $VPNStatus = Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'pangp|cisco|juniper|vpn' -and $_.Status -eq 'Up' }
 
 #Settings
-if ($SettingsURI) {    
-    Invoke-WebRequest -Uri $SettingsURI -UseBasicParsing -OutFile (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
+if ($SettingsURI) {
+    $Destination = (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
+    switch (Test-PathEx -Path $SettingsURI) {
+        'URL' {Invoke-WebRequest -Uri $SettingsURI -UseBasicParsing -OutFile $Destination}
+        'FileSystem' {Copy-Item -Path $SettingsURI -Destination $Destination -Force}
+    }    
     $SettingsFile = Import-PowerShellDataFile -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
     $Settings = $SettingsFile | ForEach-Object { $_.Keys | ForEach-Object { $SettingsFile.$_ } } 
     
@@ -198,34 +221,50 @@ else {
     exit -1
 }
 
+#Ensure Destination Path Exists
+$null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
+
 #Clean config folders of all cached PSD1's
 if ($NoCache) {
     Get-ChildItem -Path (Join-Path $InstallDir "config") -Filter *.psd1 | Remove-Item -Recurse -Force
 }
 #Copy Config Config?
 if ($ChocoConfig) {
-    $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" "config.psd1")
+    $Destination = (Join-Path "$InstallDir\config" "config.psd1")
+    switch (Test-PathEx -Path $ChocoConfig) {
+        'URL' {Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $Destination}
+        'FileSystem' {Copy-Item -Path $ChocoConfig -Destination $Destination -Force}
+    }
 }
 
 #Copy Sources Config
 if ($SourcesConfig) {
-    $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" "sources.psd1")
+    $Destination = (Join-Path "$InstallDir\config" "sources.psd1")
+    switch (Test-PathEx -Path $SourcesConfig) {
+        'URL' {Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $Destination}
+        'FileSystem' {Copy-Item -Path $SourcesConfig -Destination $Destination -Force}
+    }
 }
 
 #Copy Features Config
 if ($FeatureConfig) {
-    $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
-    Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" "features.psd1")
+    $Destination = (Join-Path "$InstallDir\config" "features.psd1")
+    switch (Test-PathEx -Path $FeatureConfig) {
+        'URL' {Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $Destination}
+        'FileSystem' {Copy-Item -Path $FeatureConfig -Destination $Destination -Force}
+    }
 }
 
 #Copy Package Config
 if ($PackageConfig) {
-    $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
     $PackageConfig | ForEach-Object {
-        Invoke-WebRequest -Uri $_ -UseBasicParsing -OutFile (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
-    } 
+        $Path = $_
+        $Destination = (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
+        switch (Test-PathEx -Path $_) {
+            'URL' {Invoke-WebRequest -Uri $Path -UseBasicParsing -OutFile $Destination}
+            'FileSystem' {Copy-Item -Path $Path -Destination $Destination -Force}
+        }
+    }
 }
 
 #Start-DSCConfiguation
