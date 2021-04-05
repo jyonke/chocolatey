@@ -52,4 +52,9 @@
         AutoUpgrade = $True
         VPN         = $False
     }
+    'firefox-x64'                        = @{
+        Name   = 'firefox-x64'
+        Ensure = 'Present'
+        Ring   = 'slow'
+    }
 }
