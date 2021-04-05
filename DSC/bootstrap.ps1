@@ -81,7 +81,7 @@ function New-PSCredential {
     return $PSCredential
 }
 
-Function RotateLog{
+Function RotateLog {
     if (Test-Path -Path (Join-Path $LogPath "cChoco.log")) {
         $LogFile = Get-Item (Join-Path $LogPath "cChoco.log")
         if ($LogFile.Length -ge 10MB) {
@@ -110,6 +110,41 @@ function Test-PathEx {
     $PathType
 }
 
+function Get-Ring {
+    param (
+        # Path
+        [Parameter(Mandatory = $false)]
+        [string]
+        $Path = (Join-Path -Path (Join-Path $InstallDir "config") -ChildPath "ring.txt")
+    )
+    switch (Get-Content -Path $Path -ErrorAction SilentlyContinue) {
+        "Canary" { $Ring = 'Canary' }
+        "Fast" { $Ring = 'Fast' }
+        "Slow" { $Ring = 'Slow' }
+        Default { $Ring = $null }
+    }
+    if ($Ring) {
+        Write-Warning "Machine Ring: $Ring"
+    }
+    return $Ring
+}
+
+function Get-RingValue {
+    param (
+        # Name
+        [Parameter()]
+        [string]
+        $Name
+    )
+    switch ($Name) {
+        "Canary" { $Value = 4 }
+        "Fast" { $Value = 3 }
+        "Slow" { $Value = 2 }
+        Default { $Value = 0 }
+    }
+    return [int]$Value
+}
+
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 try {
     $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
@@ -135,8 +170,8 @@ $VPNStatus = Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'pan
 if ($SettingsURI) {
     $Destination = (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
     switch (Test-PathEx -Path $SettingsURI) {
-        'URL' {Invoke-WebRequest -Uri $SettingsURI -UseBasicParsing -OutFile $Destination}
-        'FileSystem' {Copy-Item -Path $SettingsURI -Destination $Destination -Force}
+        'URL' { Invoke-WebRequest -Uri $SettingsURI -UseBasicParsing -OutFile $Destination }
+        'FileSystem' { Copy-Item -Path $SettingsURI -Destination $Destination -Force }
     }    
     $SettingsFile = Import-PowerShellDataFile -Path (Join-Path "$env:SystemRoot\temp" "bootstrap-cchoco.psd1")
     $Settings = $SettingsFile | ForEach-Object { $_.Keys | ForEach-Object { $SettingsFile.$_ } } 
@@ -232,8 +267,8 @@ if ($NoCache) {
 if ($ChocoConfig) {
     $Destination = (Join-Path "$InstallDir\config" "config.psd1")
     switch (Test-PathEx -Path $ChocoConfig) {
-        'URL' {Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $Destination}
-        'FileSystem' {Copy-Item -Path $ChocoConfig -Destination $Destination -Force}
+        'URL' { Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $Destination }
+        'FileSystem' { Copy-Item -Path $ChocoConfig -Destination $Destination -Force }
     }
 }
 
@@ -241,8 +276,8 @@ if ($ChocoConfig) {
 if ($SourcesConfig) {
     $Destination = (Join-Path "$InstallDir\config" "sources.psd1")
     switch (Test-PathEx -Path $SourcesConfig) {
-        'URL' {Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $Destination}
-        'FileSystem' {Copy-Item -Path $SourcesConfig -Destination $Destination -Force}
+        'URL' { Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $Destination }
+        'FileSystem' { Copy-Item -Path $SourcesConfig -Destination $Destination -Force }
     }
 }
 
@@ -250,8 +285,8 @@ if ($SourcesConfig) {
 if ($FeatureConfig) {
     $Destination = (Join-Path "$InstallDir\config" "features.psd1")
     switch (Test-PathEx -Path $FeatureConfig) {
-        'URL' {Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $Destination}
-        'FileSystem' {Copy-Item -Path $FeatureConfig -Destination $Destination -Force}
+        'URL' { Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $Destination }
+        'FileSystem' { Copy-Item -Path $FeatureConfig -Destination $Destination -Force }
     }
 }
 
@@ -261,8 +296,8 @@ if ($PackageConfig) {
         $Path = $_
         $Destination = (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
         switch (Test-PathEx -Path $_) {
-            'URL' {Invoke-WebRequest -Uri $Path -UseBasicParsing -OutFile $Destination}
-            'FileSystem' {Copy-Item -Path $Path -Destination $Destination -Force}
+            'URL' { Invoke-WebRequest -Uri $Path -UseBasicParsing -OutFile $Destination }
+            'FileSystem' { Copy-Item -Path $Path -Destination $Destination -Force }
         }
     }
 }
@@ -310,6 +345,7 @@ $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
 Import-Module $ModulePath
  
 if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
+    $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "config.psd1")
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Status = @()
@@ -360,6 +396,7 @@ $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoFeature")
 Import-Module $ModulePath
  
 if (Test-Path (Join-Path "$InstallDir\config" "features.psd1") ) {
+    $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "features.psd1")
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Status = @()
@@ -407,6 +444,7 @@ $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
 Import-Module $ModulePath
  
 if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
+    $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "sources.psd1")
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Status = @()
@@ -487,8 +525,10 @@ $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
 Import-Module $ModulePath
 $Status = @()
 Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | ForEach-Object {
+    $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+    $Ring = Get-Ring
     $Configurations | ForEach-Object {
         $DSC = $null
         $Configuration = $_
@@ -502,6 +542,7 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
             VPN         = $Configuration.VPN
             Params      = $Configuration.Params
             ChocoParams = $Configuration.ChocoParams
+            Ring        = $Configuration.Ring
             Warning     = $null
         }
         #Evaluate VPN Restrictions
@@ -523,6 +564,22 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
                 return
             }
             $Configuration.Remove("VPN")
+        }
+        #Evaluate Ring Restrictions
+        if ($null -ne $Configuration.Ring) {
+            $ConfigurationRingValue = Get-RingValue -Name $Configuration.Ring
+            if ($Ring) {
+                $SystemRingValue = Get-RingValue -Name $Ring
+            }
+            if ($SystemRingValue -lt $ConfigurationRingValue ) {
+                $Object.Warning = "Configuration restricted to $($Configuration.Ring) Ring"
+                $Configuration.Remove("Ring")
+                $DSC = Test-TargetResource @Configuration
+                $Object.DSC = $DSC
+                $Status += $Object        
+                return
+            }
+            $Configuration.Remove("Ring")
         }
         $DSC = Test-TargetResource @Configuration
         if (-not($DSC)) {
@@ -558,11 +615,12 @@ $Status | ForEach-Object {
     Write-Host -ForegroundColor White       "$($_.Params)                    "
     Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
     Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
+    Write-Host -ForegroundColor Gray        'Ring:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.Ring)                    "
     Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
     Write-Host -ForegroundColor White       "$($_.Warning)                    "
     Write-Host -ForegroundColor DarkCyan    '========================='
 }
-
 
 #Cleanup
 $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
