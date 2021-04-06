@@ -347,7 +347,9 @@ Import-Module $ModulePath
 if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
     $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "config.psd1")
-    $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+    $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -ne 'MaintenanceWindow' }
+    $MaintenanceWindowConfig = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -eq 'MaintenanceWindow' }
+
     $Status = @()
     $Configurations | ForEach-Object {
         $DSC = $null
@@ -358,6 +360,7 @@ if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
             Ensure     = $Configuration.Ensure
             Value      = $Configuration.Value
         }
+        
         $DSC = Test-TargetResource @Configuration
         if (-not($DSC)) {
             $null = Set-TargetResource @Configuration
@@ -388,6 +391,61 @@ if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
 else {
     Write-Warning "File not found, configuration will not be modified"
     Write-Warning (Join-Path "$InstallDir\config" "config.psd1")
+}
+
+#cChocoConfig-MaintenanceWindowConfig
+Write-Verbose "cChocoConfig-MaintenanceWindowConfig:Validating Chocolatey Maintenance Window is Setup"
+
+$MaintenanceWindowEnabled = $True
+$MaintenanceWindowActive = $True
+
+if ($MaintenanceWindowConfig) {
+    $Date = Get-Date 
+    $StartTime = [datetime]$MaintenanceWindowConfig.Start
+    if ([datetime]$MaintenanceWindowConfig.End -lt $StartTime) {
+        $EndTime = ([datetime]$MaintenanceWindowConfig.End).AddDays(1)
+    }
+    else {
+        $EndTime = [datetime]$MaintenanceWindowConfig.End
+    }
+
+    if ($MaintenanceWindowConfig.UTC -eq $True) {
+        $Date = $Date.ToUniversalTime()
+    }
+    if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
+        $MaintenanceWindowEnabled = $False
+        $MaintenanceWindowActive = $False
+        Write-Warning "EffectiveDateTime Set to Future DateTime"
+    }
+    else {
+        if (($Date.ticks -ge $StartTime.Ticks) -and ($Date.Ticks -lt $EndTime.Ticks)) {
+            $MaintenanceWindowActive = $True
+        }
+        else {
+            $MaintenanceWindowActive = $False
+        }
+    }
+    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
+    Write-Host -ForegroundColor Yellow      'cChocoConfig-MaintenanceWindowConfig' -NoNewline
+    Write-Host -ForegroundColor DarkCyan    '========================='
+    Write-Host -ForegroundColor Gray        'Name:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.Name)             "
+    Write-Host -ForegroundColor Gray        'EffectiveDateTime:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.EffectiveDateTime)             "
+    Write-Host -ForegroundColor Gray        'Start:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.Start)             "
+    Write-Host -ForegroundColor Gray        'End:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.End)             "
+    Write-Host -ForegroundColor Gray        'UTC:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.UTC)             "
+    Write-Host -ForegroundColor Gray        'MaintenanceWindowEnabled:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowEnabled)             "
+    Write-Host -ForegroundColor Gray        'MaintenanceWindowActive:' -NoNewline
+    Write-Host -ForegroundColor White       "$($MaintenanceWindowActive)             "
+
+}
+else {
+    Write-Warning "No Defined Maintenance Window"
 }
 
 #cChocoFeature
