@@ -401,16 +401,20 @@ $MaintenanceWindowActive = $True
 
 if ($MaintenanceWindowConfig) {
     $Date = Get-Date 
-    $StartTime = [datetime]$MaintenanceWindowConfig.Start
+    if ($MaintenanceWindowConfig.UTC -eq $True) {
+        $Date = $Date.ToUniversalTime()
+    }
+    if ([datetime]$MaintenanceWindowConfig.Start -lt $Date) {
+        $StartTime = ([datetime]$MaintenanceWindowConfig.Start).AddDays(1)
+    }
+    else {
+        $StartTime = [datetime]$MaintenanceWindowConfig.Start
+    }
     if ([datetime]$MaintenanceWindowConfig.End -lt $StartTime) {
         $EndTime = ([datetime]$MaintenanceWindowConfig.End).AddDays(1)
     }
     else {
         $EndTime = [datetime]$MaintenanceWindowConfig.End
-    }
-
-    if ($MaintenanceWindowConfig.UTC -eq $True) {
-        $Date = $Date.ToUniversalTime()
     }
     if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
         $MaintenanceWindowEnabled = $False
@@ -432,10 +436,12 @@ if ($MaintenanceWindowConfig) {
     Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.Name)             "
     Write-Host -ForegroundColor Gray        'EffectiveDateTime:' -NoNewline
     Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.EffectiveDateTime)             "
+    Write-Host -ForegroundColor Gray        'Date:' -NoNewline
+    Write-Host -ForegroundColor White       "$($Date)             "
     Write-Host -ForegroundColor Gray        'Start:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.Start)             "
+    Write-Host -ForegroundColor White       "$($StartTime)             "
     Write-Host -ForegroundColor Gray        'End:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.End)             "
+    Write-Host -ForegroundColor White       "$($EndTime)             "
     Write-Host -ForegroundColor Gray        'UTC:' -NoNewline
     Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.UTC)             "
     Write-Host -ForegroundColor Gray        'MaintenanceWindowEnabled:' -NoNewline
@@ -591,22 +597,25 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
         $DSC = $null
         $Configuration = $_
         $Object = [PSCustomObject]@{
-            Name        = $Configuration.Name
-            Version     = $Configuration.Version
-            DSC         = $null
-            Ensure      = $Configuration.Ensure
-            Source      = $Configuration.Source
-            AutoUpgrade = $Configuration.AutoUpgrade
-            VPN         = $Configuration.VPN
-            Params      = $Configuration.Params
-            ChocoParams = $Configuration.ChocoParams
-            Ring        = $Configuration.Ring
-            Warning     = $null
+            Name                      = $Configuration.Name
+            Version                   = $Configuration.Version
+            DSC                       = $null
+            Ensure                    = $Configuration.Ensure
+            Source                    = $Configuration.Source
+            AutoUpgrade               = $Configuration.AutoUpgrade
+            VPN                       = $Configuration.VPN
+            Params                    = $Configuration.Params
+            ChocoParams               = $Configuration.ChocoParams
+            Ring                      = $Configuration.Ring
+            OverrideMaintenanceWindow = $Configuration.OverrideMaintenanceWindow
+            Warning                   = $null
         }
         #Evaluate VPN Restrictions
         if ($null -ne $Configuration.VPN) {
             if ($Configuration.VPN -eq $false -and $VPNStatus) {
                 $Configuration.Remove("VPN")
+                $Configuration.Remove("Ring")
+                $Configuration.Remove("OverrideMaintenanceWindow")
                 $Object.Warning = "Configuration restricted when VPN is connected"
                 $DSC = Test-TargetResource @Configuration
                 $Object.DSC = $DSC
@@ -615,6 +624,8 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
             }
             if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
                 $Configuration.Remove("VPN")
+                $Configuration.Remove("Ring")
+                $Configuration.Remove("OverrideMaintenanceWindow")
                 $Object.Warning = "Configuration restricted when VPN is not established"
                 $DSC = Test-TargetResource @Configuration
                 $Object.DSC = $DSC
@@ -632,6 +643,8 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
             if ($SystemRingValue -lt $ConfigurationRingValue ) {
                 $Object.Warning = "Configuration restricted to $($Configuration.Ring) Ring"
                 $Configuration.Remove("Ring")
+                $Configuration.Remove("OverrideMaintenanceWindow")
+                $Configuration.Remove("VPN")
                 $DSC = Test-TargetResource @Configuration
                 $Object.DSC = $DSC
                 $Status += $Object        
@@ -639,6 +652,21 @@ Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name
             }
             $Configuration.Remove("Ring")
         }
+        #Evaluate Maintenance Window Restrictions
+        if ($Configuration.OverrideMaintenanceWindow -ne $true) {
+            if (-not($MaintenanceWindowEnabled -and $MaintenanceWindowActive)) {
+                $Object.Warning = "Configuration restricted to Maintenance Window"
+                $Configuration.Remove("OverrideMaintenanceWindow")
+                $Configuration.Remove("Ring")
+                $Configuration.Remove("VPN")
+                $DSC = Test-TargetResource @Configuration
+                $Object.DSC = $DSC
+                $Status += $Object        
+                return
+            }
+        }
+        $Configuration.Remove("OverrideMaintenanceWindow")
+
         $DSC = Test-TargetResource @Configuration
         if (-not($DSC)) {
             $null = Set-TargetResource @Configuration
@@ -675,6 +703,8 @@ $Status | ForEach-Object {
     Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
     Write-Host -ForegroundColor Gray        'Ring:' -NoNewline
     Write-Host -ForegroundColor White       "$($_.Ring)                    "
+    Write-Host -ForegroundColor Gray        'OverrideMaintenanceWindow:' -NoNewline
+    Write-Host -ForegroundColor White       "$($_.OverrideMaintenanceWindow)                    "
     Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
     Write-Host -ForegroundColor White       "$($_.Warning)                    "
     Write-Host -ForegroundColor DarkCyan    '========================='
