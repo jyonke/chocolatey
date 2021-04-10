@@ -53,10 +53,14 @@ param (
     [Parameter()]
     [string]
     $FeatureConfig,
-    # Purge Localay Cached psd1's
+    # Do not cache configuration files
     [Parameter()]
     [switch]
-    $NoCache
+    $NoCache,
+    # Wipe locally cached psd1 configurations
+    [Parameter()]
+    [switch]
+    $WipeCache
 )
 
 #Required Inline Functions
@@ -111,13 +115,9 @@ function Test-PathEx {
 }
 
 function Get-Ring {
-    param (
-        # Path
-        [Parameter(Mandatory = $false)]
-        [string]
-        $Path = (Join-Path -Path (Join-Path $InstallDir "config") -ChildPath "ring.txt")
-    )
-    switch (Get-Content -Path $Path -ErrorAction SilentlyContinue) {
+    $RegValue = (Get-ItemProperty -Path "HKLM:\Software\Chocolatey\cChoco" -ErrorAction SilentlyContinue).Ring
+
+    switch ($RegValue) {
         "Canary" { $Ring = 'Canary' }
         "Fast" { $Ring = 'Fast' }
         "Slow" { $Ring = 'Slow' }
@@ -256,45 +256,63 @@ else {
     exit -1
 }
 
-#Ensure Destination Path Exists
+#Ensure Base Destination Paths Exist
 $null = New-Item -ItemType Directory -Path (Join-Path $InstallDir "config") -ErrorAction SilentlyContinue
+$null = New-Item -ItemType Directory -Path (Join-Path "$env:TEMP\chocolatey" 'config') -Force -ErrorAction SilentlyContinue
 
 #Clean config folders of all cached PSD1's
-if ($NoCache) {
+if ($WipeCache) {
     Get-ChildItem -Path (Join-Path $InstallDir "config") -Filter *.psd1 | Remove-Item -Recurse -Force
 }
+#Preclear any previously downloaded NoCache configuration files
+if ($NoCache) {
+    Get-ChildItem -Path (Join-Path "$env:TEMP\chocolatey" 'config') -Filter *.psd1 | Remove-Item -Recurse -Force
+}
 #Copy Config Config?
+$ChocoConfigDestination = (Join-Path "$InstallDir\config" "config.psd1")
 if ($ChocoConfig) {
-    $Destination = (Join-Path "$InstallDir\config" "config.psd1")
+    if ($NoCache) {
+        $ChocoConfigDestination = (Join-Path "$env:TEMP\chocolatey\config" "config.psd1")
+    }
     switch (Test-PathEx -Path $ChocoConfig) {
-        'URL' { Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $Destination }
-        'FileSystem' { Copy-Item -Path $ChocoConfig -Destination $Destination -Force }
+        'URL' { Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $ChocoConfigDestination }
+        'FileSystem' { Copy-Item -Path $ChocoConfig -Destination $ChocoConfigDestination -Force }
     }
 }
 
 #Copy Sources Config
+$SourcesConfigDestination = (Join-Path "$InstallDir\config" "sources.psd1")
 if ($SourcesConfig) {
-    $Destination = (Join-Path "$InstallDir\config" "sources.psd1")
+    if ($NoCache) {
+        $SourcesConfigDestination = (Join-Path "$env:TEMP\chocolatey\config" "sources.psd1")
+    }
     switch (Test-PathEx -Path $SourcesConfig) {
-        'URL' { Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $Destination }
-        'FileSystem' { Copy-Item -Path $SourcesConfig -Destination $Destination -Force }
+        'URL' { Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $SourcesConfigDestination }
+        'FileSystem' { Copy-Item -Path $SourcesConfig -Destination $SourcesConfigDestination -Force }
     }
 }
 
 #Copy Features Config
+$FeatureConfigDestination = (Join-Path "$InstallDir\config" "features.psd1")
 if ($FeatureConfig) {
-    $Destination = (Join-Path "$InstallDir\config" "features.psd1")
+    if ($NoCache) {
+        $FeatureConfigDestination = (Join-Path "$env:TEMP\chocolatey\config" "features.psd1")
+    }
     switch (Test-PathEx -Path $FeatureConfig) {
-        'URL' { Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $Destination }
-        'FileSystem' { Copy-Item -Path $FeatureConfig -Destination $Destination -Force }
+        'URL' { Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $FeatureConfigDestination }
+        'FileSystem' { Copy-Item -Path $FeatureConfig -Destination $FeatureConfigDestination -Force }
     }
 }
 
 #Copy Package Config
+$PackageConfigDestination = "$InstallDir\config"
 if ($PackageConfig) {
+    if ($NoCache) {
+        $PackageConfigDestination = "$env:TEMP\chocolatey\config"
+    }
     $PackageConfig | ForEach-Object {
         $Path = $_
-        $Destination = (Join-Path "$InstallDir\config" ($_ | Split-Path -Leaf))
+        $Destination = (Join-Path $PackageConfigDestination ($_ | Split-Path -Leaf))
         switch (Test-PathEx -Path $_) {
             'URL' { Invoke-WebRequest -Uri $Path -UseBasicParsing -OutFile $Destination }
             'FileSystem' { Copy-Item -Path $Path -Destination $Destination -Force }
@@ -344,9 +362,9 @@ Write-Verbose "cChocoConfig:Validating Chocolatey Configurations are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
 Import-Module $ModulePath
  
-if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
+if (Test-Path $ChocoConfigDestination ) {
     $ConfigImport = $null
-    $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "config.psd1")
+    $ConfigImport = Import-PowerShellDataFile $ChocoConfigDestination
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -ne 'MaintenanceWindow' }
     $MaintenanceWindowConfig = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -eq 'MaintenanceWindow' }
 
@@ -390,7 +408,7 @@ if (Test-Path (Join-Path "$InstallDir\config" "config.psd1") ) {
 }
 else {
     Write-Warning "File not found, configuration will not be modified"
-    Write-Warning (Join-Path "$InstallDir\config" "config.psd1")
+    Write-Warning $ChocoConfigDestination
 }
 
 #cChocoConfig-MaintenanceWindowConfig
@@ -459,9 +477,9 @@ Write-Verbose "cChocoConfig:Validating Chocolatey Configurations are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoFeature")
 Import-Module $ModulePath
  
-if (Test-Path (Join-Path "$InstallDir\config" "features.psd1") ) {
+if (Test-Path $FeatureConfigDestination ) {
     $ConfigImport = $null
-    $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "features.psd1")
+    $ConfigImport = Import-PowerShellDataFile $FeatureConfigDestination
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Status = @()
     $Configurations | ForEach-Object {
@@ -499,7 +517,7 @@ if (Test-Path (Join-Path "$InstallDir\config" "features.psd1") ) {
 }
 else {
     Write-Warning "File not found, features will not be modified"
-    Write-Warning (Join-Path "$InstallDir\config" "features.psd1")
+    Write-Warning $FeatureConfigDestination
 }
 
 #cChocoSource
@@ -507,9 +525,9 @@ Write-Verbose "cChocoSource:Validating Chocolatey Sources are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
 Import-Module $ModulePath
  
-if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
+if (Test-Path $SourcesConfigDestination ) {
     $ConfigImport = $null
-    $ConfigImport = Import-PowerShellDataFile (Join-Path "$InstallDir\config" "sources.psd1")
+    $ConfigImport = Import-PowerShellDataFile $SourcesConfigDestination
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
     $Status = @()
     $Configurations | ForEach-Object {
@@ -580,101 +598,145 @@ if (Test-Path (Join-Path "$InstallDir\config" "sources.psd1") ) {
 }
 else {
     Write-Warning "File not found, sources will not be modified"
-    Write-Warning (Join-Path "$InstallDir\config" "sources.psd1")
+    Write-Warning $SourcesConfigDestination
 }
 
 #cChocoPackageInstall
 Write-Verbose "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
-$ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
-Import-Module $ModulePath
 $Status = @()
-Get-ChildItem -Path "$InstallDir\config" -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | ForEach-Object {
+$Ring = Get-Ring
+
+[array]$Configurations = $null
+Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | ForEach-Object {
     $ConfigImport = $null
     $ConfigImport = Import-PowerShellDataFile $_.FullName 
-    $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
-    $Ring = Get-Ring
-    $Configurations | ForEach-Object {
-        $DSC = $null
-        $Configuration = $_
-        $Object = [PSCustomObject]@{
-            Name                      = $Configuration.Name
-            Version                   = $Configuration.Version
-            DSC                       = $null
-            Ensure                    = $Configuration.Ensure
-            Source                    = $Configuration.Source
-            AutoUpgrade               = $Configuration.AutoUpgrade
-            VPN                       = $Configuration.VPN
-            Params                    = $Configuration.Params
-            ChocoParams               = $Configuration.ChocoParams
-            Ring                      = $Configuration.Ring
-            OverrideMaintenanceWindow = $Configuration.OverrideMaintenanceWindow
-            Warning                   = $null
-        }
-        #Evaluate VPN Restrictions
-        if ($null -ne $Configuration.VPN) {
-            if ($Configuration.VPN -eq $false -and $VPNStatus) {
-                $Configuration.Remove("VPN")
-                $Configuration.Remove("Ring")
-                $Configuration.Remove("OverrideMaintenanceWindow")
-                $Object.Warning = "Configuration restricted when VPN is connected"
-                $DSC = Test-TargetResource @Configuration
-                $Object.DSC = $DSC
-                $Status += $Object        
-                return
-            }
-            if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
-                $Configuration.Remove("VPN")
-                $Configuration.Remove("Ring")
-                $Configuration.Remove("OverrideMaintenanceWindow")
-                $Object.Warning = "Configuration restricted when VPN is not established"
-                $DSC = Test-TargetResource @Configuration
-                $Object.DSC = $DSC
-                $Status += $Object
-                return
-            }
-            $Configuration.Remove("VPN")
-        }
-        #Evaluate Ring Restrictions
-        if ($null -ne $Configuration.Ring) {
-            $ConfigurationRingValue = Get-RingValue -Name $Configuration.Ring
-            if ($Ring) {
-                $SystemRingValue = Get-RingValue -Name $Ring
-            }
-            if ($SystemRingValue -lt $ConfigurationRingValue ) {
-                $Object.Warning = "Configuration restricted to $($Configuration.Ring) Ring"
-                $Configuration.Remove("Ring")
-                $Configuration.Remove("OverrideMaintenanceWindow")
-                $Configuration.Remove("VPN")
-                $DSC = Test-TargetResource @Configuration
-                $Object.DSC = $DSC
-                $Status += $Object        
-                return
-            }
-            $Configuration.Remove("Ring")
-        }
-        #Evaluate Maintenance Window Restrictions
-        if ($Configuration.OverrideMaintenanceWindow -ne $true) {
-            if (-not($MaintenanceWindowEnabled -and $MaintenanceWindowActive)) {
-                $Object.Warning = "Configuration restricted to Maintenance Window"
-                $Configuration.Remove("OverrideMaintenanceWindow")
-                $Configuration.Remove("Ring")
-                $Configuration.Remove("VPN")
-                $DSC = Test-TargetResource @Configuration
-                $Object.DSC = $DSC
-                $Status += $Object        
-                return
-            }
-        }
-        $Configuration.Remove("OverrideMaintenanceWindow")
+    $Configurations += $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } }
+}
 
-        $DSC = Test-TargetResource @Configuration
-        if (-not($DSC)) {
-            $null = Set-TargetResource @Configuration
-            $DSC = Test-TargetResource @Configuration
-        }
-        $Object.DSC = $DSC
-        $Status += $Object
+#Validate No Duplicate Packages Defined
+#https://stackoverflow.com/questions/24454626/how-to-find-duplicate-values-in-powershell-hash
+$Duplicates = $Configurations.Name | Group-Object Name | Where-Object { $_.Count -gt 1 }
+if ($Duplicates) {
+    Write-Warning "Duplicate Package Found removing from active processesing"
+    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
+    Write-Host -ForegroundColor Red      'Duplicate cChocoPackageInstall' -NoNewline
+    Write-Host -ForegroundColor DarkCyan    '========================='
+    $Configurations | Where-Object { $Duplicates.Group -match $_.Name } | ForEach-Object {
+        Write-Host -ForegroundColor Gray        'Name:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Name)             "
+        Write-Host -ForegroundColor Gray        'Version:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Version)                    "
+        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.DSC)                 "
+        Write-Host -ForegroundColor Gray        'Source:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Source)             "
+        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Ensure)                    "
+        Write-Host -ForegroundColor Gray        'AutoUpgrade:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.AutoUpgrade)                 "
+        Write-Host -ForegroundColor Gray        'VPN:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.VPN)             "
+        Write-Host -ForegroundColor Gray        'Params:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Params)                    "
+        Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
+        Write-Host -ForegroundColor Gray        'Ring:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.Ring)                    "
+        Write-Host -ForegroundColor Gray        'OverrideMaintenanceWindow:' -NoNewline
+        Write-Host -ForegroundColor White       "$($_.OverrideMaintenanceWindow)                    "
+        Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
+        Write-Host -ForegroundColor White       "Duplicate Package Define                    "
+        Write-Host -ForegroundColor DarkCyan    '========================='
     }
+    #Filter Out Duplicates and Clear all package configuration files for next time processing
+    $Configurations = $Configurations | Where-Object { $Duplicates.Group -notmatch $_.Name }
+    #Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+$ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
+Import-Module $ModulePath
+
+$Configurations | ForEach-Object {
+    $DSC = $null
+    $Configuration = $_
+    $Object = [PSCustomObject]@{
+        Name                      = $Configuration.Name
+        Version                   = $Configuration.Version
+        DSC                       = $null
+        Ensure                    = $Configuration.Ensure
+        Source                    = $Configuration.Source
+        AutoUpgrade               = $Configuration.AutoUpgrade
+        VPN                       = $Configuration.VPN
+        Params                    = $Configuration.Params
+        ChocoParams               = $Configuration.ChocoParams
+        Ring                      = $Configuration.Ring
+        OverrideMaintenanceWindow = $Configuration.OverrideMaintenanceWindow
+        Warning                   = $null
+    }
+    #Evaluate VPN Restrictions
+    if ($null -ne $Configuration.VPN) {
+        if ($Configuration.VPN -eq $false -and $VPNStatus) {
+            $Configuration.Remove("VPN")
+            $Configuration.Remove("Ring")
+            $Configuration.Remove("OverrideMaintenanceWindow")
+            $Object.Warning = "Configuration restricted when VPN is connected"
+            $DSC = Test-TargetResource @Configuration
+            $Object.DSC = $DSC
+            $Status += $Object        
+            return
+        }
+        if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
+            $Configuration.Remove("VPN")
+            $Configuration.Remove("Ring")
+            $Configuration.Remove("OverrideMaintenanceWindow")
+            $Object.Warning = "Configuration restricted when VPN is not established"
+            $DSC = Test-TargetResource @Configuration
+            $Object.DSC = $DSC
+            $Status += $Object
+            return
+        }
+        $Configuration.Remove("VPN")
+    }
+    #Evaluate Ring Restrictions
+    if ($null -ne $Configuration.Ring) {
+        $ConfigurationRingValue = Get-RingValue -Name $Configuration.Ring
+        if ($Ring) {
+            $SystemRingValue = Get-RingValue -Name $Ring
+        }
+        if ($SystemRingValue -lt $ConfigurationRingValue ) {
+            $Object.Warning = "Configuration restricted to $($Configuration.Ring) Ring"
+            $Configuration.Remove("Ring")
+            $Configuration.Remove("OverrideMaintenanceWindow")
+            $Configuration.Remove("VPN")
+            $DSC = Test-TargetResource @Configuration
+            $Object.DSC = $DSC
+            $Status += $Object        
+            return
+        }
+        $Configuration.Remove("Ring")
+    }
+    #Evaluate Maintenance Window Restrictions
+    if ($Configuration.OverrideMaintenanceWindow -ne $true) {
+        if (-not($MaintenanceWindowEnabled -and $MaintenanceWindowActive)) {
+            $Object.Warning = "Configuration restricted to Maintenance Window"
+            $Configuration.Remove("OverrideMaintenanceWindow")
+            $Configuration.Remove("Ring")
+            $Configuration.Remove("VPN")
+            $DSC = Test-TargetResource @Configuration
+            $Object.DSC = $DSC
+            $Status += $Object        
+            return
+        }
+    }
+    $Configuration.Remove("OverrideMaintenanceWindow")
+
+    $DSC = Test-TargetResource @Configuration
+    if (-not($DSC)) {
+        $null = Set-TargetResource @Configuration
+        $DSC = Test-TargetResource @Configuration
+    }
+    $Object.DSC = $DSC
+    $Status += $Object
 }
 #Remove Module for Write-Host limitations
 Remove-Module "cChocoPackageInstall"
@@ -711,6 +773,10 @@ $Status | ForEach-Object {
 }
 
 #Cleanup
+#Preclear any previously downloaded NoCache configuration files
+if ($NoCache) {
+    Get-ChildItem -Path (Join-Path "$env:TEMP\chocolatey" 'config') -Filter *.psd1 | Remove-Item -Recurse -Force
+}
 $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
 if ($Transcript) {
     $null = Stop-Transcript -ErrorAction SilentlyContinue   
