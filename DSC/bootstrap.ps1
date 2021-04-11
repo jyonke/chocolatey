@@ -418,27 +418,32 @@ $MaintenanceWindowEnabled = $True
 $MaintenanceWindowActive = $True
 
 if ($MaintenanceWindowConfig) {
-    $Date = Get-Date 
+    $Date = Get-Date
+    #Convert to UTC if option is enabled 
     if ($MaintenanceWindowConfig.UTC -eq $True) {
         $Date = $Date.ToUniversalTime()
     }
-    if ([datetime]$MaintenanceWindowConfig.Start -lt $Date) {
+    #If calculated end time is less than current date, assume start window happens the next day
+    if ([datetime]$MaintenanceWindowConfig.End -lt $Date) {
         $StartTime = ([datetime]$MaintenanceWindowConfig.Start).AddDays(1)
     }
     else {
         $StartTime = [datetime]$MaintenanceWindowConfig.Start
     }
+    #If calculated end time is less than calculated start time (time span across 00:00), assume the end window happens the next day
     if ([datetime]$MaintenanceWindowConfig.End -lt $StartTime) {
         $EndTime = ([datetime]$MaintenanceWindowConfig.End).AddDays(1)
     }
     else {
         $EndTime = [datetime]$MaintenanceWindowConfig.End
     }
+    #Determine if maintenance window is active yet, default to false if not active
     if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
         $MaintenanceWindowEnabled = $False
         $MaintenanceWindowActive = $False
         Write-Warning "EffectiveDateTime Set to Future DateTime"
     }
+    #Determine if window is active
     else {
         if (($Date.ticks -ge $StartTime.Ticks) -and ($Date.Ticks -lt $EndTime.Ticks)) {
             $MaintenanceWindowActive = $True
