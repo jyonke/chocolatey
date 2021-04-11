@@ -614,14 +614,14 @@ Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_
 }
 
 #Validate No Duplicate Packages Defined
-#https://stackoverflow.com/questions/24454626/how-to-find-duplicate-values-in-powershell-hash
-$Duplicates = $Configurations.Name | Group-Object Name | Where-Object { $_.Count -gt 1 }
+$DuplicateSearch = (Compare-Object -ReferenceObject $Configurations.Name -DifferenceObject ($Configurations.Name | Select-Object -Unique) | Where-Object {$_.SideIndicator -eq '<='}).InputObject
+$Duplicates = $Configurations | Where-Object {$DuplicateSearch -eq $_.Name}
 if ($Duplicates) {
     Write-Warning "Duplicate Package Found removing from active processesing"
     Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
     Write-Host -ForegroundColor Red      'Duplicate cChocoPackageInstall' -NoNewline
     Write-Host -ForegroundColor DarkCyan    '========================='
-    $Configurations | Where-Object { $Duplicates.Group -match $_.Name } | ForEach-Object {
+    $Configurations | Where-Object { $Duplicates.Name -eq $_.Name } | ForEach-Object {
         Write-Host -ForegroundColor Gray        'Name:' -NoNewline
         Write-Host -ForegroundColor White       "$($_.Name)             "
         Write-Host -ForegroundColor Gray        'Version:' -NoNewline
@@ -645,11 +645,11 @@ if ($Duplicates) {
         Write-Host -ForegroundColor Gray        'OverrideMaintenanceWindow:' -NoNewline
         Write-Host -ForegroundColor White       "$($_.OverrideMaintenanceWindow)                    "
         Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
-        Write-Host -ForegroundColor White       "Duplicate Package Define                    "
+        Write-Host -ForegroundColor White       "Duplicate Package Defined                    "
         Write-Host -ForegroundColor DarkCyan    '========================='
     }
     #Filter Out Duplicates and Clear all package configuration files for next time processing
-    $Configurations = $Configurations | Where-Object { $Duplicates.Group -notmatch $_.Name }
+    $Configurations = $Configurations | Where-Object { $Duplicates.Name -notcontains $_.Name }
     #Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
 }
 
