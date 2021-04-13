@@ -29,9 +29,17 @@
         AutoUpgrade = $True
     }
     "vlc"                                = @{
-        Name        = "vlc"
-        Ensure      = 'Present'
-        AutoUpgrade = $True
+        Name                      = "vlc"
+        MinimumVersion            = "3.0.0"
+        Ensure                    = 'Present'
+        AutoUpgrade               = $True
+        OverrideMaintenanceWindow = $True
+    }
+    "jre8"                               = @{
+        Name                      = "jre8"
+        Ensure                    = 'Present'
+        AutoUpgrade               = $True
+        OverrideMaintenanceWindow = $False
     }
     "git.install"                        = @{
         Name        = "git.install"
@@ -53,8 +61,9 @@
         VPN         = $False
     }
     'firefox-x64'                        = @{
-        Name   = 'firefox-x64'
-        Ensure = 'Present'
-        Ring   = 'slow'
+        Name    = 'firefox-x64'
+        Version = "87.0"
+        Ensure  = 'Present'
+        Ring    = 'canary'
     }
 }
