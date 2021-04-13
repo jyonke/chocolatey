@@ -206,7 +206,23 @@ function Un7Zip-Archive {
         throw ($errorMessage, $errorDetails -join [Environment]::NewLine)
     }
 }
+if ($PSVersionTable.PSVersion.Major -lt 5) {
+    function Import-PowerShellDataFile {
+        param (
+            # Path to PSD1 File
+            [Parameter(Mandatory = $true)]
+            [string]
+            $Path
+        )
+        [hashtable][Microsoft.PowerShell.DesiredStateConfiguration.ArgumentToConfigurationDataTransformation()]$Hashtable = $Path
+        return $Hashtable
+    }
+}
+
+#Enable TLS 1.2
+#https://docs.microsoft.com/en-us/dotnet/api/system.net.securityprotocoltype?view=net-5.0
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+
 $CurrentExecutionPolicy = Get-ExecutionPolicy
 try {
     $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
