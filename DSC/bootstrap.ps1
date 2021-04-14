@@ -714,7 +714,7 @@ Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_
 if ($Configurations) {
     #Validate No Duplicate Packages Defined
     $DuplicateSearch = (Compare-Object -ReferenceObject $Configurations.Name -DifferenceObject ($Configurations.Name | Select-Object -Unique) | Where-Object { $_.SideIndicator -eq '<=' }).InputObject
-    $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name }
+    $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name } | Where-Object {$_.Ring -eq $null}
     if ($Duplicates) {
         Write-Warning "Duplicate Package Found removing from active processesing"
         Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
@@ -749,7 +749,7 @@ if ($Configurations) {
         }
         #Filter Out Duplicates and Clear all package configuration files for next time processing
         $Configurations = $Configurations | Where-Object { $Duplicates.Name -notcontains $_.Name }
-        #Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
     }
 
     $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
