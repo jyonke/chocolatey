@@ -128,7 +128,7 @@ function Get-Ring {
         Default { $Ring = $null }
     }
     if ($Ring) {
-        Write-Warning "Machine Ring: $Ring"
+        Write-Log -Severity 'Information' -Message "Machine Ring: $Ring"
     }
     return $Ring
 }
@@ -163,11 +163,11 @@ function Un7Zip-Archive {
     
     $7zaExe = Join-Path $env:TEMP -ChildPath '7za.exe'
     if (-not (Test-Path ($7zaExe))) {
-        Write-Host "Downloading 7-Zip commandline tool prior to extraction."
+        Write-Log -Severity 'Information' -Message "Downloading 7-Zip commandline tool prior to extraction."
         Invoke-WebRequest -UseBasicParsing -Uri 'https://community.chocolatey.org/7za.exe' -OutFile $7zaExe
     }
     else {
-        Write-Host "7zip already present, skipping installation."
+        Write-Log -Severity 'Information' -Message "7zip already present, skipping installation."
     }
 
     $params = 'x -o"{0}" -bd -y "{1}"' -f $DestinationPath, $Path
@@ -206,6 +206,43 @@ function Un7Zip-Archive {
         throw ($errorMessage, $errorDetails -join [Environment]::NewLine)
     }
 }
+function Write-Log {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]$Message,
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [ValidateSet('Information', 'Warning', 'Error')]
+        [string]$Severity = 'Information',
+        [Parameter()]
+        [ValidateNotNullOrEmpty()]
+        [string]
+        $Path = (Join-Path $LogPath "cChoco.log"),
+        [Parameter()]
+        [Switch]
+        $New
+    )
+ 
+    if ($New) {
+        Remove-Item -Path $Path -Force
+    }
+    switch ($Severity) {
+        Information {$Color = "White"}
+        Warning {$Color = "Yellow"}
+        Error {$Color = "Red"}
+        Default {$Color = "White"}
+    }
+    $Object = [pscustomobject]@{
+        Time     = (Get-Date -f g)
+        Severity = $Severity
+        Message  = $Message
+    } 
+    $Object | Export-Csv -Path $Path -Append -NoTypeInformation
+    Write-Host "$($Object.Time) - $($Object.Severity) - $($Object.Message)" -ForegroundColor $Color
+}
+
 if ($PSVersionTable.PSVersion.Major -lt 5) {
     function Import-PowerShellDataFile {
         param (
@@ -228,21 +265,28 @@ try {
     $null = Set-ExecutionPolicy Bypass -Scope CurrentUser
 }
 catch {
-    Write-Warning "Error Changing Execution Policy"
+    Write-Log -Severity 'Warning' -Message "Error Changing Execution Policy"
 }
 
 try {
-    $LogPath = (Join-Path $InstallDir "logs")
+    $Global:LogPath = (Join-Path $InstallDir "logs")
     $null = New-Item -ItemType Directory -Path $LogPath -Force -ErrorAction SilentlyContinue
-    $null = Start-Transcript -Path (Join-Path $LogPath "cChoco.log") -Append
-    $Transcript = $true
+    Write-Log -Severity 'Information' -Message 'cChoco Bootstrap Started'
 }
 catch {
-    Write-Warning "Error Starting Log"
+    Write-Warning "Error Starting Log, wiping and retrying"
+    Write-Log -Severity 'Information' -Message 'cChoco Bootstrap Started' -New
+
 }
 
 #Evaluate VPN Status
 $VPNStatus = Get-NetAdapter | Where-Object { $_.InterfaceDescription -match 'pangp|cisco|juniper|vpn' -and $_.Status -eq 'Up' }
+if ($VPNStatus) {
+    Write-Log -Severity 'Information' -Message "VPN Status: Active"
+}
+else {
+    Write-Log -Severity 'Information' -Message "VPN Status: InActive"
+}
 
 #Settings
 if ($SettingsURI) {
@@ -265,27 +309,16 @@ if ($SettingsURI) {
     $FeatureConfig = $settings.FeatureConfig
 }
 
-Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-Write-Host -ForegroundColor Yellow      'cCHoco Bootstrap Settings' -NoNewline
-Write-Host -ForegroundColor DarkCyan    '========================='
-Write-Host -ForegroundColor Gray        'SettingsURI:' -NoNewline
-Write-Host -ForegroundColor White       "$SettingsURI                               "
-Write-Host -ForegroundColor Gray        'InstallDir:' -NoNewline
-Write-Host -ForegroundColor White       "$InstallDir                                "
-Write-Host -ForegroundColor Gray        'ChocoInstallScriptUrl:' -NoNewline
-Write-Host -ForegroundColor White       "$ChocoInstallScriptUrl                     "
-Write-Host -ForegroundColor Gray        'ModuleSource:' -NoNewline
-Write-Host -ForegroundColor White       "$ModuleSource                              "
-Write-Host -ForegroundColor Gray        'ModuleVersion:' -NoNewline
-Write-Host -ForegroundColor White       "$ModuleVersion                             "
-Write-Host -ForegroundColor Gray        'SourcesConfig:' -NoNewline
-Write-Host -ForegroundColor White       "$SourcesConfig                             "
-Write-Host -ForegroundColor Gray        'PackageConfig:' -NoNewline
-Write-Host -ForegroundColor White       "$PackageConfig                             "
-Write-Host -ForegroundColor Gray        'ChocoConfig:' -NoNewline
-Write-Host -ForegroundColor White       "$ChocoConfig                               "
-Write-Host -ForegroundColor Gray        'FeatureConfig:' -NoNewline
-Write-Host -ForegroundColor White       "$FeatureConfig                             "
+Write-Log -Severity 'Information' -Message "cCHoco Bootstrap Settings"
+Write-Log -Severity 'Information' -Message "SettingsURI: $SettingsURI"
+Write-Log -Severity 'Information' -Message "InstallDir: $InstallDir"
+Write-Log -Severity 'Information' -Message "ChocoInstallScriptUrl: $ChocoInstallScriptUrl"
+Write-Log -Severity 'Information' -Message "ModuleSource: $ModuleSource"
+Write-Log -Severity 'Information' -Message "ModuleVersion: $ModuleVersion"
+Write-Log -Severity 'Information' -Message "SourcesConfig: $SourcesConfig"
+Write-Log -Severity 'Information' -Message "PackageConfig: $PackageConfig"
+Write-Log -Severity 'Information' -Message "ChocoConfig: $ChocoConfig"
+Write-Log -Severity 'Information' -Message "FeatureConfig: $FeatureConfig"
 
 #Set Enviromental Variable for chocolatey url to nupkg
 $env:chocolateyDownloadUrl = $ChocoDownloadUrl
@@ -294,8 +327,8 @@ $env:chocolateyDownloadUrl = $ChocoDownloadUrl
 $Destination = (Join-Path "$env:ProgramFiles\WindowsPowerShell\Modules" "cChoco\$ModuleVersion")
 
 if (-not(Test-ModuleManifest (Join-Path $Destination 'cChoco.psd1') -ErrorAction SilentlyContinue)) {
-    Write-Verbose "Installing cChoco - version $ModuleVersion"
-    Write-Verbose "Source: $ModuleSource"
+    Write-Log -Severity 'Information' -Message "Installing cChoco - version $ModuleVersion"
+    Write-Log -Severity 'Information' -Message "Source: $ModuleSource"
     $ModuleInstalled = $false
     if ($ModuleSource) {
         try {
@@ -310,6 +343,8 @@ if (-not(Test-ModuleManifest (Join-Path $Destination 'cChoco.psd1') -ErrorAction
                     $destinationFolder.CopyHere($zipPackage.Items(), 0x10)
                 }
                 catch {
+                    Write-Log -Severity 'Error' -Message "Unable to unzip package using built-in compression."
+                    Write-Log -Severity 'Error' -Message "$($_.Exception.Message)"
                     throw "Unable to unzip package using built-in compression. Error: `n $_"
                 }              
             }
@@ -318,16 +353,17 @@ if (-not(Test-ModuleManifest (Join-Path $Destination 'cChoco.psd1') -ErrorAction
             }
         }
         catch {
-            Write-Warning $_.Exception.Message
+            Write-Log -Severity 'Error' -Message "$($_.Exception.Message)"
         }
     }
     else {
         try {
-            Write-Verbose "Attemping to install from PowerShell Gallery"
+            Write-Log -Severity 'Information' -Message "Attemping to install from PowerShell Gallery"
             $null = Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Confirm:$false -ErrorAction SilentlyContinue
             Install-Module cChoco -RequiredVersion $ModuleVersion -Confirm:$false -Force -ErrorAction Stop
         }
         catch {
+            Write-Log -Severity 'Error' -Message "$($_.Exception.Message)"
             $_.Exception.Message
         }
     }
@@ -346,6 +382,7 @@ if ($ModuleInstalled) {
     $ModuleBase = (Test-ModuleManifest (Join-Path $Destination 'cChoco.psd1') -ErrorAction SilentlyContinue).ModuleBase
 }
 else {
+    Write-Log -Severity 'Error' -Message "cChoco not installed"
     Throw "cChoco not installed"
     exit -1
 }
@@ -356,10 +393,12 @@ $null = New-Item -ItemType Directory -Path (Join-Path "$env:TEMP\chocolatey" 'co
 
 #Clean config folders of all cached PSD1's
 if ($WipeCache) {
+    Write-Log -Severity 'Information' -Message 'WipeCache Enabled. Wiping any previously downloaded psd1 configuration files'
     Get-ChildItem -Path (Join-Path $InstallDir "config") -Filter *.psd1 | Remove-Item -Recurse -Force
 }
 #Preclear any previously downloaded NoCache configuration files
 if ($NoCache) {
+    Write-Log -Severity 'Information' -Message 'NoCache Enabled. Wiping any previously downloaded NoCache configuration files from temp'
     Get-ChildItem -Path (Join-Path "$env:TEMP\chocolatey" 'config') -Filter *.psd1 | Remove-Item -Recurse -Force
 }
 #Copy Config Config?
@@ -372,6 +411,7 @@ if ($ChocoConfig) {
         'URL' { Invoke-WebRequest -Uri $ChocoConfig -UseBasicParsing -OutFile $ChocoConfigDestination }
         'FileSystem' { Copy-Item -Path $ChocoConfig -Destination $ChocoConfigDestination -Force }
     }
+    Write-Log -Severity 'Information' -Message 'Chocolatey Config File Set.'
 }
 
 #Copy Sources Config
@@ -384,6 +424,7 @@ if ($SourcesConfig) {
         'URL' { Invoke-WebRequest -Uri $SourcesConfig -UseBasicParsing -OutFile $SourcesConfigDestination }
         'FileSystem' { Copy-Item -Path $SourcesConfig -Destination $SourcesConfigDestination -Force }
     }
+    Write-Log -Severity 'Information' -Message 'Chocolatey Sources File Set.'
 }
 
 #Copy Features Config
@@ -396,6 +437,7 @@ if ($FeatureConfig) {
         'URL' { Invoke-WebRequest -Uri $FeatureConfig -UseBasicParsing -OutFile $FeatureConfigDestination }
         'FileSystem' { Copy-Item -Path $FeatureConfig -Destination $FeatureConfigDestination -Force }
     }
+    Write-Log -Severity 'Information' -Message 'Chocolatey Feature File Set.'
 }
 
 #Copy Package Config
@@ -412,11 +454,12 @@ if ($PackageConfig) {
             'FileSystem' { Copy-Item -Path $Path -Destination $Destination -Force }
         }
     }
+    Write-Log -Severity 'Information' -Message 'Chocolatey Package File Set.'
 }
 
 #Start-DSCConfiguation
 #cChocoInstaller
-Write-Verbose "cChocoInstaller:Validating Chocolatey is installed"
+Write-Log -Severity 'Information' -Message "cChocoInstaller:Validating Chocolatey is installed"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoInstaller")
 Import-Module $ModulePath
 $Configuration = @{
@@ -439,20 +482,14 @@ $Object.DSC = $DSC
 #Remove Module for Write-Host limitations
 Remove-Module "cChocoInstaller"
 
-Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-Write-Host -ForegroundColor Yellow      'cChocoInstaller' -NoNewline
-Write-Host -ForegroundColor DarkCyan    '========================='
-Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-Write-Host -ForegroundColor White       "$($Object.Name)                              "
-Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-Write-Host -ForegroundColor White       "$($Object.DSC)                               "
-Write-Host -ForegroundColor Gray        'InstallDir:' -NoNewline
-Write-Host -ForegroundColor White       "$($Object.InstallDir)                        "
-Write-Host -ForegroundColor Gray        'ChocoInstallScriptUrl:' -NoNewline
-Write-Host -ForegroundColor White       "$($Object.ChocoInstallScriptUrl)             "
+Write-Log -Severity 'Information' -Message "cChocoInstaller"
+Write-Log -Severity 'Information' -Message "Name: $($Object.Name)"
+Write-Log -Severity 'Information' -Message "DSC: $($Object.DSC)"
+Write-Log -Severity 'Information' -Message "InstallDir: $($Object.InstallDir)"
+Write-Log -Severity 'Information' -Message "ChocoInstallScriptUrl: $($Object.ChocoInstallScriptUrl)"
 
 #cChocoConfig
-Write-Verbose "cChocoConfig:Validating Chocolatey Configurations are Setup"
+Write-Log -Severity 'Information' -Message "cChocoConfig:Validating Chocolatey Configurations are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
 Import-Module $ModulePath
  
@@ -485,28 +522,20 @@ if (Test-Path $ChocoConfigDestination ) {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoConfig"
 
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoConfig' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
+    Write-Log -Severity 'Information' -Message 'cChocoConfig'
     $Status | ForEach-Object {
-        Write-Host -ForegroundColor Gray        'ConfigName:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.ConfigName)             "
-        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.DSC)                    "
-        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ensure)                 "
-        Write-Host -ForegroundColor Gray        'Value:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Value)                  "    
-        Write-Host -ForegroundColor DarkCyan    '========================='                            
+        Write-Log -Severity 'Information' -Message "ConfigName: $($_.ConfigName)"
+        Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
+        Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
+        Write-Log -Severity 'Information' -Message "Value: $($_.Value)"               
     }
 }
 else {
-    Write-Warning "File not found, configuration will not be modified"
-    Write-Warning $ChocoConfigDestination
+    Write-Log -Severity 'Warning'  -Message "File not found, configuration will not be modified"          
 }
 
 #cChocoConfig-MaintenanceWindowConfig
-Write-Verbose "cChocoConfig-MaintenanceWindowConfig:Validating Chocolatey Maintenance Window is Setup"
+Write-Log -Severity 'Information'  -Message "cChocoConfig-MaintenanceWindowConfig:Validating Chocolatey Maintenance Window is Setup"
 
 $MaintenanceWindowEnabled = $True
 $MaintenanceWindowActive = $True
@@ -535,7 +564,7 @@ if ($MaintenanceWindowConfig) {
     if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
         $MaintenanceWindowEnabled = $False
         $MaintenanceWindowActive = $False
-        Write-Warning "EffectiveDateTime Set to Future DateTime"
+        Write-Log -Severity 'Warning' -Message "EffectiveDateTime Set to Future DateTime"
     }
     #Determine if window is active
     else {
@@ -546,33 +575,22 @@ if ($MaintenanceWindowConfig) {
             $MaintenanceWindowActive = $False
         }
     }
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoConfig-MaintenanceWindowConfig' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
-    Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.Name)             "
-    Write-Host -ForegroundColor Gray        'EffectiveDateTime:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.EffectiveDateTime)             "
-    Write-Host -ForegroundColor Gray        'Date:' -NoNewline
-    Write-Host -ForegroundColor White       "$($Date)             "
-    Write-Host -ForegroundColor Gray        'Start:' -NoNewline
-    Write-Host -ForegroundColor White       "$($StartTime)             "
-    Write-Host -ForegroundColor Gray        'End:' -NoNewline
-    Write-Host -ForegroundColor White       "$($EndTime)             "
-    Write-Host -ForegroundColor Gray        'UTC:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowConfig.UTC)             "
-    Write-Host -ForegroundColor Gray        'MaintenanceWindowEnabled:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowEnabled)             "
-    Write-Host -ForegroundColor Gray        'MaintenanceWindowActive:' -NoNewline
-    Write-Host -ForegroundColor White       "$($MaintenanceWindowActive)             "
-
+    Write-Log -Severity 'Information' -Message "cChocoConfig-MaintenanceWindowConfig"
+    Write-Log -Severity 'Information' -Message "Name: $($MaintenanceWindowConfig.Name)"
+    Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime) "
+    Write-Log -Severity 'Information' -Message "Date: $($Date)"
+    Write-Log -Severity 'Information' -Message "Start: $($StartTime)"
+    Write-Log -Severity 'Information' -Message "End: $($EndTime)"
+    Write-Log -Severity 'Information' -Message "UTC: $($MaintenanceWindowConfig.UTC)"
+    Write-Log -Severity 'Information' -Message "MaintenanceWindowEnabled: $($MaintenanceWindowEnabled)"
+    Write-Log -Severity 'Information' -Message "MaintenanceWindowActive: $($MaintenanceWindowActive)"
 }
 else {
-    Write-Warning "No Defined Maintenance Window"
+    Write-Log -Severity 'Warning' -Message "No Defined Maintenance Window"
 }
 
 #cChocoFeature
-Write-Verbose "cChocoConfig:Validating Chocolatey Configurations are Setup"
+Write-Log -Severity 'Information' -Message "cChocoConfig:Validating Chocolatey Configurations are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoFeature")
 Import-Module $ModulePath
  
@@ -601,26 +619,19 @@ if (Test-Path $FeatureConfigDestination ) {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoFeature"
 
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoFeature' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
+    Write-Log -Severity 'Information' -Message 'cChocoFeature'
     $Status | ForEach-Object {
-        Write-Host -ForegroundColor Gray        'FeatureName:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.FeatureName)             "
-        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.DSC)                    "
-        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ensure)                 "
-        Write-Host -ForegroundColor DarkCyan    '========================='
+        Write-Log -Severity 'Information' -Message "FeatureName: $($_.FeatureName)"
+        Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
+        Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
     }
 }
 else {
-    Write-Warning "File not found, features will not be modified"
-    Write-Warning $FeatureConfigDestination
+    Write-Log -Severity 'Information' -Message "File not found, features will not be modified"
 }
 
 #cChocoSource
-Write-Verbose "cChocoSource:Validating Chocolatey Sources are Setup"
+Write-Log -Severity "Information" -Message "cChocoSource:Validating Chocolatey Sources are Setup"
 $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
 Import-Module $ModulePath
  
@@ -672,36 +683,26 @@ if (Test-Path $SourcesConfigDestination ) {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoSource"
 
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoSource' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
+    Write-Log -Severity 'Information' -Message "cChocoSource"
     $Status | ForEach-Object {
-        Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Name)             "
-        Write-Host -ForegroundColor Gray        'Priority:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Priority)                    "
-        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.DSC)                 "
-        Write-Host -ForegroundColor Gray        'Source:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Source)             "
-        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ensure)                    "
-        Write-Host -ForegroundColor Gray        'User:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.User)                 "
-        Write-Host -ForegroundColor Gray        'KeyFile:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.KeyFile)             "
-        Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Warning)                    "
-        Write-Host -ForegroundColor DarkCyan    '========================='
+        Write-Log -Severity 'Information' -Message "Name: $($_.Name)"
+        Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
+        Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
+        Write-Log -Severity 'Information' -Message "Priority: $($_.Priority)"
+        Write-Log -Severity 'Information' -Message "Source: $($_.Source)"
+        Write-Log -Severity 'Information' -Message "User: $($_.User)"
+        Write-Log -Severity 'Information' -Message "KeyFile: $($_.KeyFile)"
+        if ($_.Warning) {
+            Write-Log -Severity 'Warning' -Message "$($_.Warning)"
+        }
     }
 }
 else {
-    Write-Warning "File not found, sources will not be modified"
-    Write-Warning $SourcesConfigDestination
+    Write-Log -Severity "Information" -Message "File not found, sources will not be modified"
 }
 
 #cChocoPackageInstall
-Write-Verbose "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
+Write-Log -Severity "Information" -Message "cChocoPackageInstall:Validating Chocolatey Packages are Setup"
 $Status = @()
 $Ring = Get-Ring
 
@@ -716,38 +717,24 @@ if ($Configurations) {
     $DuplicateSearch = (Compare-Object -ReferenceObject $Configurations.Name -DifferenceObject ($Configurations.Name | Select-Object -Unique) | Where-Object { $_.SideIndicator -eq '<=' }).InputObject
     $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name } | Where-Object {$_.Ring -eq $null}
     if ($Duplicates) {
-        Write-Warning "Duplicate Package Found removing from active processesing"
-        Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-        Write-Host -ForegroundColor Red      'Duplicate cChocoPackageInstall' -NoNewline
-        Write-Host -ForegroundColor DarkCyan    '========================='
+        Write-Log -Severity 'Warning' -Message "Duplicate cChocoPackageInstall"
+        Write-Log -Severity 'Warning' -Message "Duplicate Package Found removing from active processesing"
         $Configurations | Where-Object { $Duplicates.Name -eq $_.Name } | ForEach-Object {
-            Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Name)             "
-            Write-Host -ForegroundColor Gray        'Version:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Version)                    "
-            Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.DSC)                 "
-            Write-Host -ForegroundColor Gray        'Source:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Source)             "
-            Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Ensure)                    "
-            Write-Host -ForegroundColor Gray        'AutoUpgrade:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.AutoUpgrade)                 "
-            Write-Host -ForegroundColor Gray        'VPN:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.VPN)             "
-            Write-Host -ForegroundColor Gray        'Params:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Params)                    "
-            Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
-            Write-Host -ForegroundColor Gray        'Ring:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.Ring)                    "
-            Write-Host -ForegroundColor Gray        'OverrideMaintenanceWindow:' -NoNewline
-            Write-Host -ForegroundColor White       "$($_.OverrideMaintenanceWindow)                    "
-            Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
-            Write-Host -ForegroundColor White       "Duplicate Package Defined                    "
-            Write-Host -ForegroundColor DarkCyan    '========================='
+            Write-Log -Severity 'Warning' -Message "Name: $($_.Name)"
+            Write-Log -Severity 'Warning' -Message "Version $($_.Version)"
+            Write-Log -Severity 'Warning' -Message "DSC: $($_.DSC)"
+            Write-Log -Severity 'Warning' -Message "Source: $($_.Source)"
+            Write-Log -Severity 'Warning' -Message "Ensure: $($_.Ensure)"
+            Write-Log -Severity 'Warning' -Message "AutoUpgrade: $($_.AutoUpgrade)"
+            Write-Log -Severity 'Warning' -Message "VPN: $($_.VPN)"
+            Write-Log -Severity 'Warning' -Message "Params: $($_.Params)"
+            Write-Log -Severity 'Warning' -Message "ChocoParams: $($_.ChocoParams)"
+            Write-Log -Severity 'Warning' -Message "Ring: $($_.Ring)"
+            Write-Log -Severity 'Warning' -Message "OverrideMaintenanceWindow: $($_.OverrideMaintenanceWindow)"
+            Write-Log -Severity 'Warning' -Message "Duplicate Package Defined"
         }
         #Filter Out Duplicates and Clear all package configuration files for next time processing
+        Write-Log -Severity 'Warning' -Message "Filter Out Duplicates and Clear all package configuration files for next time processing"
         $Configurations = $Configurations | Where-Object { $Duplicates.Name -notcontains $_.Name }
         Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
     }
@@ -840,49 +827,34 @@ if ($Configurations) {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoPackageInstall"
 
-    Write-Host -ForegroundColor DarkCyan    '=========================' -NoNewline
-    Write-Host -ForegroundColor Yellow      'cChocoPackageInstall' -NoNewline
-    Write-Host -ForegroundColor DarkCyan    '========================='
+    Write-Log -Severity "Information" -Message "cChocoPackageInstall"
     $Status | ForEach-Object {
-        Write-Host -ForegroundColor Gray        'Name:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Name)             "
-        Write-Host -ForegroundColor Gray        'Version:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Version)                    "
-        Write-Host -ForegroundColor Gray        'DSC:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.DSC)                 "
-        Write-Host -ForegroundColor Gray        'Source:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Source)             "
-        Write-Host -ForegroundColor Gray        'Ensure:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ensure)                    "
-        Write-Host -ForegroundColor Gray        'AutoUpgrade:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.AutoUpgrade)                 "
-        Write-Host -ForegroundColor Gray        'VPN:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.VPN)             "
-        Write-Host -ForegroundColor Gray        'Params:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Params)                    "
-        Write-Host -ForegroundColor Gray        'ChocoParams:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.ChocoParams)                    "
-        Write-Host -ForegroundColor Gray        'Ring:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Ring)                    "
-        Write-Host -ForegroundColor Gray        'OverrideMaintenanceWindow:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.OverrideMaintenanceWindow)                    "
-        Write-Host -ForegroundColor Gray        'Warning:' -NoNewline
-        Write-Host -ForegroundColor White       "$($_.Warning)                    "
-        Write-Host -ForegroundColor DarkCyan    '========================='
+        Write-Log -Severity 'Information' -Message "Name: $($_.Name)"
+        Write-Log -Severity 'Information' -Message "Version $($_.Version)"
+        Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
+        Write-Log -Severity 'Information' -Message "Source: $($_.Source)"
+        Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
+        Write-Log -Severity 'Information' -Message "AutoUpgrade: $($_.AutoUpgrade)"
+        Write-Log -Severity 'Information' -Message "VPN: $($_.VPN)"
+        Write-Log -Severity 'Information' -Message "Params: $($_.Params)"
+        Write-Log -Severity 'Information' -Message "ChocoParams: $($_.ChocoParams)"
+        Write-Log -Severity 'Information' -Message "Ring: $($_.Ring)"
+        Write-Log -Severity 'Information' -Message "OverrideMaintenanceWindow: $($_.OverrideMaintenanceWindow)"
+        if ($_.Warning) {
+            Write-Log -Severity Warning -Message "$($_.Warning)"
+        }
+
     }
 }
 else {
-    Write-Warning "File not found, packages will not be modified"
+    Write-Log -Severity 'Warning' -Message "File not found, packages will not be modified"
 }
-
 
 #Cleanup
 #Preclear any previously downloaded NoCache configuration files
 if ($NoCache) {
+    Write-Log -Severity "Information" -Message "Preclear any previously downloaded NoCache configuration files"
     Get-ChildItem -Path (Join-Path "$env:TEMP\chocolatey" 'config') -Filter *.psd1 | Remove-Item -Recurse -Force
 }
 $null = Set-ExecutionPolicy $CurrentExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
-if ($Transcript) {
-    $null = Stop-Transcript -ErrorAction SilentlyContinue   
-}
 RotateLog
