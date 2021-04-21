@@ -242,6 +242,75 @@ function Write-Log {
     $Object | Export-Csv -Path $Path -Append -NoTypeInformation
     Write-Host "$($Object.Time) - $($Object.Severity) - $($Object.Message)" -ForegroundColor $Color
 }
+function Get-MaintenanceWindow {
+    param (
+        # UTC
+        [Parameter()]
+        [bool]
+        $UTC,
+        # StartTime
+        [Parameter(Mandatory = $True)]
+        [datetime]
+        $StartTime,
+        # EndTime
+        [Parameter(Mandatory = $True)]
+        [datetime]
+        $EndTime,
+        # Effective Date Time
+        [Parameter(Mandatory = $False)]
+        [datetime]
+        $EffectiveDateTime
+    )
+    $Date = Get-Date
+    Write-Verbose "Current Date: $Date"
+    if ($UTC -eq $True) {
+        $Date = $Date.ToUniversalTime()
+        Write-Verbose "Converted Time to UTC"
+        Write-Verbose "Current Date: $Date"
+    }
+    #Offset Times if TimeSpan crosses 00:00
+    if ($StartTime.TimeOfDay -gt $EndTime.TimeOfDay) {
+        $OffSet = 24 - $StartTime.TimeOfDay.TotalHours
+        $AltDate = $Date.TimeOfDay.TotalHours + $OffSet
+        if ($AltDate -gt 24) {
+            $AltDate = $AltDate - 24
+        }
+        $AltStartTime = [int]0.0
+        $AltEndTime = $EndTime.TimeOfDay.TotalHours + $OffSet
+        $MaintenanceWindowActive = $AltDate -ge $AltStartTime -and $AltDate -le $AltEndTime
+        Write-Verbose "Start Time is Greater Than EndTime"
+        Write-Verbose "Offset: $OffSet"
+        Write-Verbose "AltDateHours: $AltDate"
+        Write-Verbose "AltStartTimeHours: $AltStartTime"
+        Write-Verbose "AltEndTimHours: $AltEndTime"
+    }
+    if (($StartTime.TimeOfDay -lt $EndTime.TimeOfDay)) {
+        $MaintenanceWindowActive = $Date.TimeOfDay.TotalHours -ge $StartTime.TimeOfDay.TotalHours -and $Date.TimeOfDay.TotalHours -le $EndTime.TimeOfDay.TotalHours
+        Write-Verbose "Start Time is Less Than EndTime"
+    }
+    #Determine if maintenance window is active yet, default to false if not active
+    if ($Date -lt $EffectiveDateTime) {
+        $MaintenanceWindowEnabled = $False
+        $MaintenanceWindowActive = $False
+        Write-Verbose "MaintenanceWindowEnabled False - Date is less than Effective Date Time"
+    }
+    else {
+        $MaintenanceWindowEnabled = $True
+        Write-Verbose "MaintenanceWindowEnabled True - Date is greater than Effective Date Time"
+
+    }
+    Write-Verbose "DateTimeofDay: $($Date.TimeOfDay)"
+    Write-Verbose "StartTimeTimeOfDay: $($StartTime.TimeOfDay)"
+    Write-Verbose "EndTimeTimeOfDay: $($EndTime.TimeOfDay)"
+    Write-Verbose "EffectiveDateTime: $EffectiveDateTime"
+    Write-Verbose "MaintenanceWindowEnabled: $MaintenanceWindowEnabled"
+    Write-Verbose "MaintenanceWindowActive: $MaintenanceWindowActive"
+
+    return [PSCustomObject]@{
+        MaintenanceWindowEnabled = $MaintenanceWindowEnabled
+        MaintenanceWindowActive  = $MaintenanceWindowActive
+    }
+}
 
 if ($PSVersionTable.PSVersion.Major -lt 5) {
     function Import-PowerShellDataFile {
@@ -541,32 +610,13 @@ $MaintenanceWindowEnabled = $True
 $MaintenanceWindowActive = $True
 
 if ($MaintenanceWindowConfig) {
-    $Date = Get-Date
-    #Convert to UTC if option is enabled 
-    if ($MaintenanceWindowConfig.UTC -eq $True) {
-        $Date = $Date.ToUniversalTime()
-    }
-    $StartTime = ([datetime]$MaintenanceWindowConfig.Start)
-    $EndTime = ([datetime]$MaintenanceWindowConfig.End)
+    $MaintenanceWindowTest = Get-MaintenanceWindow -StartTime $MaintenanceWindowConfig.Start -EndTime $MaintenanceWindowConfig.End -EffectiveDateTime $MaintenanceWindowConfig.EffectiveDateTime -UTC $MaintenanceWindowConfig.UTC -Verbose
+    $MaintenanceWindowEnabled = $MaintenanceWindowTest.MaintenanceWindowEnabled
+    $MaintenanceWindowActive = $MaintenanceWindowTest.MaintenanceWindowActive
 
-    if ($StartTime -gt $EndTime) {
-        $MaintenanceWindowActive = $Date.TimeOfDay -ge $StartTime.TimeOfDay -and $Date.TimeOfDay -ge $EndTime.TimeOfDay
-
-    }
-    if (($StartTime -lt $EndTime)) {
-        $MaintenanceWindowActive = $Date.TimeOfDay -ge $StartTime.TimeOfDay -and $Date.TimeOfDay -le $EndTime.TimeOfDay
-    }
-
-    #Determine if maintenance window is active yet, default to false if not active
-    if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
-        $MaintenanceWindowEnabled = $False
-        $MaintenanceWindowActive = $False
-        Write-Log -Severity 'Warning' -Message "EffectiveDateTime Set to Future DateTime"
-    }
     Write-Log -Severity 'Information' -Message "cChocoConfig-MaintenanceWindowConfig"
     Write-Log -Severity 'Information' -Message "Name: $($MaintenanceWindowConfig.Name)"
-    Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime) "
-    Write-Log -Severity 'Information' -Message "Date: $($Date)"
+    Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime)"
     Write-Log -Severity 'Information' -Message "Start: $($MaintenanceWindowConfig.Start)"
     Write-Log -Severity 'Information' -Message "End: $($MaintenanceWindowConfig.End)"
     Write-Log -Severity 'Information' -Message "UTC: $($MaintenanceWindowConfig.UTC)"
