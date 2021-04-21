@@ -229,10 +229,10 @@ function Write-Log {
         Remove-Item -Path $Path -Force
     }
     switch ($Severity) {
-        Information {$Color = "White"}
-        Warning {$Color = "Yellow"}
-        Error {$Color = "Red"}
-        Default {$Color = "White"}
+        Information { $Color = "White" }
+        Warning { $Color = "Yellow" }
+        Error { $Color = "Red" }
+        Default { $Color = "White" }
     }
     $Object = [pscustomobject]@{
         Time     = (Get-Date -f g)
@@ -546,41 +546,29 @@ if ($MaintenanceWindowConfig) {
     if ($MaintenanceWindowConfig.UTC -eq $True) {
         $Date = $Date.ToUniversalTime()
     }
-    #If calculated end time is less than current date, assume start window happens the next day
-    if ([datetime]$MaintenanceWindowConfig.End -lt $Date) {
-        $StartTime = ([datetime]$MaintenanceWindowConfig.Start).AddDays(1)
+    $StartTime = ([datetime]$MaintenanceWindowConfig.Start)
+    $EndTime = ([datetime]$MaintenanceWindowConfig.End)
+
+    if ($StartTime -gt $EndTime) {
+        $MaintenanceWindowActive = $Date.TimeOfDay -ge $StartTime.TimeOfDay -and $Date.TimeOfDay -ge $EndTime.TimeOfDay
+
     }
-    else {
-        $StartTime = [datetime]$MaintenanceWindowConfig.Start
+    if (($StartTime -lt $EndTime)) {
+        $MaintenanceWindowActive = $Date.TimeOfDay -ge $StartTime.TimeOfDay -and $Date.TimeOfDay -le $EndTime.TimeOfDay
     }
-    #If calculated end time is less than calculated start time (time span across 00:00), assume the end window happens the next day
-    if ([datetime]$MaintenanceWindowConfig.End -lt $StartTime) {
-        $EndTime = ([datetime]$MaintenanceWindowConfig.End).AddDays(1)
-    }
-    else {
-        $EndTime = [datetime]$MaintenanceWindowConfig.End
-    }
+
     #Determine if maintenance window is active yet, default to false if not active
     if ($Date -lt [datetime]$MaintenanceWindowConfig.EffectiveDateTime) {
         $MaintenanceWindowEnabled = $False
         $MaintenanceWindowActive = $False
         Write-Log -Severity 'Warning' -Message "EffectiveDateTime Set to Future DateTime"
     }
-    #Determine if window is active
-    else {
-        if (($Date.ticks -ge $StartTime.Ticks) -and ($Date.Ticks -lt $EndTime.Ticks)) {
-            $MaintenanceWindowActive = $True
-        }
-        else {
-            $MaintenanceWindowActive = $False
-        }
-    }
     Write-Log -Severity 'Information' -Message "cChocoConfig-MaintenanceWindowConfig"
     Write-Log -Severity 'Information' -Message "Name: $($MaintenanceWindowConfig.Name)"
     Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime) "
     Write-Log -Severity 'Information' -Message "Date: $($Date)"
-    Write-Log -Severity 'Information' -Message "Start: $($StartTime)"
-    Write-Log -Severity 'Information' -Message "End: $($EndTime)"
+    Write-Log -Severity 'Information' -Message "Start: $($MaintenanceWindowConfig.Start)"
+    Write-Log -Severity 'Information' -Message "End: $($MaintenanceWindowConfig.End)"
     Write-Log -Severity 'Information' -Message "UTC: $($MaintenanceWindowConfig.UTC)"
     Write-Log -Severity 'Information' -Message "MaintenanceWindowEnabled: $($MaintenanceWindowEnabled)"
     Write-Log -Severity 'Information' -Message "MaintenanceWindowActive: $($MaintenanceWindowActive)"
@@ -715,7 +703,7 @@ Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_
 if ($Configurations) {
     #Validate No Duplicate Packages Defined
     $DuplicateSearch = (Compare-Object -ReferenceObject $Configurations.Name -DifferenceObject ($Configurations.Name | Select-Object -Unique) | Where-Object { $_.SideIndicator -eq '<=' }).InputObject
-    $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name } | Where-Object {$_.Ring -eq $null}
+    $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name } | Where-Object { $_.Ring -eq $null }
     if ($Duplicates) {
         Write-Log -Severity 'Warning' -Message "Duplicate cChocoPackageInstall"
         Write-Log -Severity 'Warning' -Message "Duplicate Package Found removing from active processesing"
