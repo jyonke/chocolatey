@@ -64,7 +64,11 @@ param (
     # Wipe locally cached psd1 configurations
     [Parameter()]
     [switch]
-    $WipeCache
+    $WipeCache,
+    # RandomDelay
+    [Parameter()]
+    [switch]
+    $RandomDelay
 )
 
 #Required Inline Functions
@@ -346,6 +350,14 @@ catch {
     Write-Warning "Error Starting Log, wiping and retrying"
     Write-Log -Severity 'Information' -Message 'cChoco Bootstrap Started' -New
 
+}
+
+#Evaluate Random Delay Switch
+if ($RandomDelay) {
+    $RandomSeconds = Get-Random -Minimum 0 -Maximum 900
+    Write-Log -Severity 'Information' -Message "Random Delay Enabled"
+    Write-Log -Severity 'Information' -Message "Delay: $RandomSeconds`s"
+    Start-Sleep -Seconds $RandomSeconds
 }
 
 #Evaluate VPN Status
