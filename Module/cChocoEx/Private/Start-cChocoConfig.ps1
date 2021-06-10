@@ -1,0 +1,67 @@
+function Start-cChocoConfig {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [hashtable]
+        $ConfigImport
+    )
+    Write-Log -Severity 'Information' -Message "cChocoConfig:Validating Chocolatey Configurations are Setup"
+    $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
+    Import-Module $ModulePath
+    $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -ne 'MaintenanceWindow' }
+
+    $Status = @()
+    $Configurations | ForEach-Object {
+        $DSC = $null
+        $Configuration = $_
+        $Object = [PSCustomObject]@{
+            ConfigName = $Configuration.ConfigName
+            DSC        = $null
+            Ensure     = $Configuration.Ensure
+            Value      = $Configuration.Value
+        }
+        
+        $DSC = Test-TargetResource @Configuration
+        if (-not($DSC)) {
+            $null = Set-TargetResource @Configuration
+            $DSC = Test-TargetResource @Configuration
+        }
+        
+        $Object.DSC = $DSC
+        $Status += $Object
+    }
+    #Remove Module for Write-Host limitations
+    Remove-Module "cChocoConfig"
+
+    Write-Log -Severity 'Information' -Message 'cChocoConfig'
+    $Status | ForEach-Object {
+        Write-Log -Severity 'Information' -Message "ConfigName: $($_.ConfigName)"
+        Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
+        Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
+        Write-Log -Severity 'Information' -Message "Value: $($_.Value)"               
+    }
+
+    #cChocoConfig-MaintenanceWindowConfig
+    Write-Log -Severity 'Information'  -Message "cChocoConfig-MaintenanceWindowConfig:Validating Chocolatey Maintenance Window is Setup"
+
+    $Global:MaintenanceWindowEnabled = $True
+    $Global:MaintenanceWindowActive = $True
+
+    if ($MaintenanceWindowConfig) {
+        $MaintenanceWindowTest = Get-MaintenanceWindow -StartTime $MaintenanceWindowConfig.Start -EndTime $MaintenanceWindowConfig.End -EffectiveDateTime $MaintenanceWindowConfig.EffectiveDateTime -UTC $MaintenanceWindowConfig.UTC -Verbose
+        $Global:MaintenanceWindowEnabled = $MaintenanceWindowTest.MaintenanceWindowEnabled
+        $Global:MaintenanceWindowActive = $MaintenanceWindowTest.MaintenanceWindowActive
+
+        Write-Log -Severity 'Information' -Message "cChocoConfig-MaintenanceWindowConfig"
+        Write-Log -Severity 'Information' -Message "Name: $($MaintenanceWindowConfig.Name)"
+        Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime)"
+        Write-Log -Severity 'Information' -Message "Start: $($MaintenanceWindowConfig.Start)"
+        Write-Log -Severity 'Information' -Message "End: $($MaintenanceWindowConfig.End)"
+        Write-Log -Severity 'Information' -Message "UTC: $($MaintenanceWindowConfig.UTC)"
+        Write-Log -Severity 'Information' -Message "MaintenanceWindowEnabled: $($MaintenanceWindowEnabled)"
+        Write-Log -Severity 'Information' -Message "MaintenanceWindowActive: $($MaintenanceWindowActive)"
+    }
+    else {
+        Write-Log -Severity 'Warning' -Message "No Defined Maintenance Window"
+    }
+}

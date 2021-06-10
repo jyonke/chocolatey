@@ -27,7 +27,7 @@
     "MaintenanceWindow" = @{
         Name              = 'MaintenanceWindow'
         EffectiveDateTime = "04-05-2021 21:00"
-        Start             = '23:59'
+        Start             = '23:00'
         End               = '05:30'
         UTC               = $false
     }
