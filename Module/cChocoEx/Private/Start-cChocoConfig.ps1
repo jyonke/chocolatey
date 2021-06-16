@@ -9,6 +9,7 @@ function Start-cChocoConfig {
     $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
     Import-Module $ModulePath
     $Configurations = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -ne 'MaintenanceWindow' }
+    $MaintenanceWindowConfig = $ConfigImport | ForEach-Object { $_.Keys | ForEach-Object { $ConfigImport.$_ } } | Where-Object { $_.Name -eq 'MaintenanceWindow' }
 
     $Status = @()
     $Configurations | ForEach-Object {
