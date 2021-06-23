@@ -10,9 +10,11 @@ $cChocoExData = @{
     SettingsURI = 'https://raw.githubusercontent.com/jyonke/chocolatey/Module/DSC/configurations/examples/cChocoBootstrapExample.psd1' 
     RandomDelay = $true
 }
+#NuGet Provider Setup
+Get-PackageProvider -Name Nuget -Force -ForceBootstrap
 
 #Register PSRepository
-if (-not(Get-PSRepository -Name $RepositoryData.Name)) {
+if (-not(Get-PSRepository -Name $RepositoryData.Name -ErrorAction SilentlyContinue)) {
     Register-PSRepository @RepositoryData
 }
 
@@ -21,14 +23,14 @@ if (Get-Module -Name 'cChoco') {
     Update-Module -Name 'cChoco'
 }
 else {
-    Install-Module -Name 'cChoco' -Scope 'AllUsers' -Repository $RepositoryData.Name
+    Install-Module -Name 'cChoco' -Scope 'AllUsers' -Repository $RepositoryData.Name -Force
 }
 
 if (Get-Module -Name 'cChocoEx') {
     Update-Module -Name 'cChocoEx'
 }
 else {
-    Install-Module -Name 'cChocoEx' -Scope 'AllUsers' -Repository $RepositoryData.Name
+    Install-Module -Name 'cChocoEx' -Scope 'AllUsers' -Repository $RepositoryData.Name -Force
 }
 
 Import-Module -Name 'cChocoEx' -Force
