@@ -16,14 +16,6 @@ function Start-cChocoEx {
         [Parameter()]
         [string]
         $ChocoDownloadUrl = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.10.15.nupkg',
-        # URL to required cChoco nupkg
-        [Parameter()]
-        [string]
-        $ModuleSource = 'https://github.com/jyonke/chocolatey/raw/master/DSC/nupkg/cchoco.2.5.0.nupkg',
-        # cChoco Module Version
-        [Parameter()]
-        [string]
-        $ModuleVersion = "2.5.0.0",
         # URL to cChoco sources configuration file
         [Parameter()]
         [string]
@@ -98,8 +90,6 @@ function Start-cChocoEx {
         #Variables
         $InstallDir = $Settings.InstallDir
         $ChocoInstallScriptUrl = $Settings.ChocoInstallScriptUrl
-        $ModuleSource = $Settings.ModuleSource
-        $ModuleVersion = $Settings.ModuleVersion
         $SourcesConfig = $Settings.SourcesConfig
         $PackageConfig = $Settings.PackageConfig
         $ChocoConfig = $Settings.ChocoConfig
@@ -110,8 +100,6 @@ function Start-cChocoEx {
     Write-Log -Severity 'Information' -Message "SettingsURI: $SettingsURI"
     Write-Log -Severity 'Information' -Message "InstallDir: $InstallDir"
     Write-Log -Severity 'Information' -Message "ChocoInstallScriptUrl: $ChocoInstallScriptUrl"
-    Write-Log -Severity 'Information' -Message "ModuleSource: $ModuleSource"
-    Write-Log -Severity 'Information' -Message "ModuleVersion: $ModuleVersion"
     Write-Log -Severity 'Information' -Message "SourcesConfig: $SourcesConfig"
     Write-Log -Severity 'Information' -Message "PackageConfig: $PackageConfig"
     Write-Log -Severity 'Information' -Message "ChocoConfig: $ChocoConfig"
@@ -214,7 +202,7 @@ function Start-cChocoEx {
     #cChocoFeature
     if (Test-Path $FeatureConfigDestination ) {
         $ConfigImport = $null
-        $ConfigImport = Import-PowerShellDataFile $ChocoConfigDestination
+        $ConfigImport = Import-PowerShellDataFile $FeatureConfigDestination
         Start-cChocoFeature -ConfigImport $ConfigImport
     }
     else {
