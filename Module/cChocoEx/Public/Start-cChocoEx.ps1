@@ -180,6 +180,8 @@ function Start-cChocoEx {
 
     #Start-DSCConfiguation
     $Global:ModuleBase = (Get-Module -Name 'cChoco' -ListAvailable -ErrorAction Stop | Sort-Object -Property Version | Select-Object -Last 1).ModuleBase
+    $Global:MaintenanceWindowEnabled = $True
+    $Global:MaintenanceWindowActive = $True
 
     #cChocoInstaller
     $Configuration = @{
