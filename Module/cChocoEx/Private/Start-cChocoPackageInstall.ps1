@@ -11,11 +11,12 @@ function Start-cChocoPackageInstall {
 
     #Evaluate Ring Status
     $Ring = Get-Ring
+    Write-Log -Severity 'Information' -Message "Local Machine Deployment Ring: $Ring"
     
     #Evaluate VPN Status
     $VPNStatus = Get-VPNStatus
 
-    #Validate No Duplicate Packages Defined
+    #Validate No Duplicate Packages Defined with no Ring Details
     $DuplicateSearch = (Compare-Object -ReferenceObject $Configurations.Name -DifferenceObject ($Configurations.Name | Select-Object -Unique) | Where-Object { $_.SideIndicator -eq '<=' }).InputObject
     $Duplicates = $Configurations | Where-Object { $DuplicateSearch -eq $_.Name } | Where-Object { $_.Ring -eq $null }
     if ($Duplicates) {
@@ -40,11 +41,15 @@ function Start-cChocoPackageInstall {
         $Configurations = $Configurations | Where-Object { $Duplicates.Name -notcontains $_.Name }
         Get-ChildItem -Path $PackageConfigDestination -Filter *.psd1 | Where-Object { $_.Name -notmatch "sources.psd1|config.psd1|features.psd1" } | Remove-Item -Force -ErrorAction SilentlyContinue
     }
+
+    #Filter and Validate Packages with defined deploymentrings
+    Write-Log -Severity 'Information' -Message "Getting Valid Deployment Ring Packages"
+    $PriorityConfigurations = Get-PackagePriority -Configurations $Configurations
     
     $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoPackageInstall")
     Import-Module $ModulePath
     
-    $Configurations | ForEach-Object {
+    $PriorityConfigurations | ForEach-Object {
         $DSC = $null
         $Configuration = $_
         $Object = [PSCustomObject]@{
@@ -129,8 +134,9 @@ function Start-cChocoPackageInstall {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoPackageInstall"
     
-    Write-Log -Severity "Information" -Message "cChocoPackageInstall"
+    Write-Log -Severity "Information" -Message "Starting cChocoPackageInstall"
     $Status | ForEach-Object {
+        Write-Host '----------cChocoPackageInstall----------' -ForegroundColor DarkCyan
         Write-Log -Severity 'Information' -Message "Name: $($_.Name)"
         Write-Log -Severity 'Information' -Message "Version $($_.Version)"
         Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
@@ -145,6 +151,6 @@ function Start-cChocoPackageInstall {
         if ($_.Warning) {
             Write-Log -Severity Warning -Message "$($_.Warning)"
         }
-    
     }
+    Write-Host '----------cChocoPackageInstall----------' -ForegroundColor DarkCyan
 }
