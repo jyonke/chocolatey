@@ -10,8 +10,5 @@ function Get-Ring {
         "Broad" { $Ring = 'broad' }
         Default { $Ring = "broad" }
     }
-    if ($Ring) {
-        Write-Log -Severity 'Information' -Message "Machine Ring: $Ring"
-    }
     return $Ring
 }
