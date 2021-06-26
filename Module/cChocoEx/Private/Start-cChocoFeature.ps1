@@ -30,11 +30,12 @@ function Start-cChocoFeature {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoFeature"
 
-    Write-Log -Severity 'Information' -Message 'cChocoFeature'
+    Write-Log -Severity 'Information' -Message 'Starting cChocoFeature'
     $Status | ForEach-Object {
+        Write-Host '-------------cChocoFeature--------------' -ForegroundColor DarkCyan
         Write-Log -Severity 'Information' -Message "FeatureName: $($_.FeatureName)"
         Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
         Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
     }
-
+    Write-Host '-------------cChocoFeature--------------' -ForegroundColor DarkCyan
 }

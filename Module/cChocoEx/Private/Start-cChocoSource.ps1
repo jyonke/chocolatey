@@ -55,8 +55,9 @@ function Start-cChocoSource {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoSource"
 
-    Write-Log -Severity 'Information' -Message "cChocoSource"
+    Write-Log -Severity 'Information' -Message "Starting cChocoSource"
     $Status | ForEach-Object {
+        Write-Host '--------------cChocoSource--------------' -ForegroundColor DarkCyan
         Write-Log -Severity 'Information' -Message "Name: $($_.Name)"
         Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
         Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
@@ -68,5 +69,6 @@ function Start-cChocoSource {
             Write-Log -Severity 'Warning' -Message "$($_.Warning)"
         }
     }
+    Write-Host '--------------cChocoSource--------------' -ForegroundColor DarkCyan
     
 }

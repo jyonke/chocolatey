@@ -34,13 +34,15 @@ function Start-cChocoConfig {
     #Remove Module for Write-Host limitations
     Remove-Module "cChocoConfig"
 
-    Write-Log -Severity 'Information' -Message 'cChocoConfig'
+    Write-Log -Severity 'Information' -Message 'Starting cChocoConfig'
     $Status | ForEach-Object {
+        Write-Host '--------------cChocoConfig--------------' -ForegroundColor DarkCyan
         Write-Log -Severity 'Information' -Message "ConfigName: $($_.ConfigName)"
         Write-Log -Severity 'Information' -Message "DSC: $($_.DSC)"
         Write-Log -Severity 'Information' -Message "Ensure: $($_.Ensure)"
         Write-Log -Severity 'Information' -Message "Value: $($_.Value)"               
     }
+    Write-Host '--------------cChocoConfig--------------' -ForegroundColor DarkCyan
 
     #cChocoConfig-MaintenanceWindowConfig
     Write-Log -Severity 'Information'  -Message "cChocoConfig-MaintenanceWindowConfig:Validating Chocolatey Maintenance Window is Setup"
@@ -52,7 +54,7 @@ function Start-cChocoConfig {
         $MaintenanceWindowTest = Get-MaintenanceWindow -StartTime $MaintenanceWindowConfig.Start -EndTime $MaintenanceWindowConfig.End -EffectiveDateTime $MaintenanceWindowConfig.EffectiveDateTime -UTC $MaintenanceWindowConfig.UTC -Verbose
         $Global:MaintenanceWindowEnabled = $MaintenanceWindowTest.MaintenanceWindowEnabled
         $Global:MaintenanceWindowActive = $MaintenanceWindowTest.MaintenanceWindowActive
-
+        Write-Host '--cChocoConfig-MaintenanceWindowConfig--' -ForegroundColor DarkCyan
         Write-Log -Severity 'Information' -Message "cChocoConfig-MaintenanceWindowConfig"
         Write-Log -Severity 'Information' -Message "Name: $($MaintenanceWindowConfig.Name)"
         Write-Log -Severity 'Information' -Message "EffectiveDateTime: $($MaintenanceWindowConfig.EffectiveDateTime)"
@@ -61,6 +63,7 @@ function Start-cChocoConfig {
         Write-Log -Severity 'Information' -Message "UTC: $($MaintenanceWindowConfig.UTC)"
         Write-Log -Severity 'Information' -Message "MaintenanceWindowEnabled: $($MaintenanceWindowEnabled)"
         Write-Log -Severity 'Information' -Message "MaintenanceWindowActive: $($MaintenanceWindowActive)"
+        Write-Host '--cChocoConfig-MaintenanceWindowConfig--' -ForegroundColor DarkCyan
     }
     else {
         Write-Log -Severity 'Warning' -Message "No Defined Maintenance Window"
