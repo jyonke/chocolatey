@@ -9,4 +9,4 @@ foreach ($Import in @($PublicFunctions + $PrivateFunctions)) {
     Catch { Write-Error -Message "Failed to import function $($Import.FullName): $_" }
 }
 
-Export-ModuleMember -Function $PublicFunctions.BaseName -Verbose
+Export-ModuleMember -Function $PublicFunctions.BaseName
