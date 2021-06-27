@@ -4,7 +4,7 @@
 
     Author = 'Jonathan Yonke <jon.yonke@gmail.com>'
 
-    ModuleVersion = '0.0.2.02'
+    ModuleVersion = '0.0.2.03'
 
     # Use the New-Guid command to generate a GUID, and copy/paste into the next line
     GUID = 'fa3aecec-1a56-443c-8fb9-13ee275f1391'
