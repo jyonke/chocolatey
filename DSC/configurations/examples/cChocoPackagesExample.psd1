@@ -28,12 +28,31 @@
         Ensure      = 'Present'
         AutoUpgrade = $True
     }
-    "vlc"                                = @{
+    "vlc-broad"                          = @{
         Name                      = "vlc"
-        MinimumVersion            = "3.0.0"
+        MinimumVersion            = "2.0.1"
         Ensure                    = 'Present'
-        AutoUpgrade               = $True
         OverrideMaintenanceWindow = $True
+        Ring                      = 'Broad'
+    }
+    "vlc-preview"                        = @{
+        Name        = "vlc"
+        Ensure      = 'Present'
+        AutoUpgrade = $True
+        Ring        = 'Preview'
+    }
+    "vlc-slow"                           = @{
+        Name           = "vlc"
+        Ensure         = 'Present'
+        MinimumVersion = "3.0.0"
+        Ring           = 'Slow'
+    }
+    "vlc-fast"                           = @{
+        Name                      = "vlc"
+        Ensure                    = 'Present'
+        MinimumVersion            = "3.0.15"
+        OverrideMaintenanceWindow = $True
+        Ring                      = 'Fast'
     }
     "jre8"                               = @{
         Name                      = "jre8"
@@ -64,6 +83,24 @@
         Name    = 'firefox-x64'
         Version = "87.0"
         Ensure  = 'Present'
-        Ring    = 'canary'
+        Ring    = 'broad'
+    }
+    'firefox-x64-latest'                 = @{
+        Name        = 'firefox-x64'
+        Ensure      = 'Present'
+        AutoUpgrade = $True
+        Ring        = 'Pilot'
+    }
+    'microsoft-edge'                     = @{
+        Name        = 'microsoft-edge'
+        Ensure      = 'Present'
+        AutoUpgrade = $True
+        Ring        = 'Broad'
+    }
+    'winscp'                             = @{
+        Name        = 'winscp'
+        Ensure      = 'Present'
+        AutoUpgrade = $True
+        Ring        = 'Broad'
     }
 }
