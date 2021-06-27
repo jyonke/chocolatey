@@ -33,7 +33,7 @@ function Get-MaintenanceWindow {
         }
         $AltStartTime = [int]0.0
         $AltEndTime = $EndTime.TimeOfDay.TotalHours + $OffSet
-        $MaintenanceWindowActive = $AltDate -ge $AltStartTime -and $AltDate -le $AltEndTime
+        $Global:MaintenanceWindowActive = $AltDate -ge $AltStartTime -and $AltDate -le $AltEndTime
         Write-Verbose "Start Time is Greater Than EndTime"
         Write-Verbose "Offset: $OffSet"
         Write-Verbose "AltDateHours: $AltDate"
@@ -41,17 +41,17 @@ function Get-MaintenanceWindow {
         Write-Verbose "AltEndTimHours: $AltEndTime"
     }
     if (($StartTime.TimeOfDay -lt $EndTime.TimeOfDay)) {
-        $MaintenanceWindowActive = $Date.TimeOfDay.TotalHours -ge $StartTime.TimeOfDay.TotalHours -and $Date.TimeOfDay.TotalHours -le $EndTime.TimeOfDay.TotalHours
+        $Global:MaintenanceWindowActive = $Date.TimeOfDay.TotalHours -ge $StartTime.TimeOfDay.TotalHours -and $Date.TimeOfDay.TotalHours -le $EndTime.TimeOfDay.TotalHours
         Write-Verbose "Start Time is Less Than EndTime"
     }
     #Determine if maintenance window is active yet, default to false if not active
     if ($Date -lt $EffectiveDateTime) {
-        $MaintenanceWindowEnabled = $False
-        $MaintenanceWindowActive = $False
+        $Global:MaintenanceWindowEnabled = $False
+        $Global:MaintenanceWindowActive = $False
         Write-Verbose "MaintenanceWindowEnabled False - Date is less than Effective Date Time"
     }
     else {
-        $MaintenanceWindowEnabled = $True
+        $Global:MaintenanceWindowEnabled = $True
         Write-Verbose "MaintenanceWindowEnabled True - Date is greater than Effective Date Time"
 
     }
@@ -59,11 +59,11 @@ function Get-MaintenanceWindow {
     Write-Verbose "StartTimeTimeOfDay: $($StartTime.TimeOfDay)"
     Write-Verbose "EndTimeTimeOfDay: $($EndTime.TimeOfDay)"
     Write-Verbose "EffectiveDateTime: $EffectiveDateTime"
-    Write-Verbose "MaintenanceWindowEnabled: $MaintenanceWindowEnabled"
-    Write-Verbose "MaintenanceWindowActive: $MaintenanceWindowActive"
+    Write-Verbose "MaintenanceWindowEnabled: $Global:MaintenanceWindowEnabled"
+    Write-Verbose "MaintenanceWindowActive: $Global:MaintenanceWindowActive"
 
     return [PSCustomObject]@{
-        MaintenanceWindowEnabled = $MaintenanceWindowEnabled
-        MaintenanceWindowActive  = $MaintenanceWindowActive
+        MaintenanceWindowEnabled = $Global:MaintenanceWindowEnabled
+        MaintenanceWindowActive  = $Global:MaintenanceWindowActive
     }
 }

@@ -110,7 +110,7 @@ function Start-cChocoPackageInstall {
         }
         #Evaluate Maintenance Window Restrictions
         if ($Configuration.OverrideMaintenanceWindow -ne $true) {
-            if (-not($MaintenanceWindowEnabled -and $MaintenanceWindowActive)) {
+            if (-not($Global:MaintenanceWindowEnabled -and $Global:MaintenanceWindowActive)) {
                 $Object.Warning = "Configuration restricted to Maintenance Window"
                 $Configuration.Remove("OverrideMaintenanceWindow")
                 $Configuration.Remove("Ring")
