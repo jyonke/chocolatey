@@ -22,7 +22,7 @@
         ChocoConfig   = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoConfigExample.psd1'
         FeatureConfig = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoFeatureExample.psd1'
         PackageConfig = @(
-            'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/examples/cChocoPackagesExample.psd1'
+            'https://raw.githubusercontent.com/jyonke/chocolatey/Module/DSC/configurations/examples/cChocoPackagesExample.psd1'
         )
     }
 }
