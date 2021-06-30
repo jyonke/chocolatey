@@ -5,6 +5,8 @@ function Start-cChocoConfig {
         [hashtable]
         $ConfigImport
     )
+    $TSEnv = Test-TSEnv
+
     Write-Log -Severity 'Information' -Message "cChocoConfig:Validating Chocolatey Configurations are Setup"
     $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoConfig")
     Import-Module $ModulePath
@@ -50,7 +52,7 @@ function Start-cChocoConfig {
     $Global:MaintenanceWindowEnabled = $True
     $Global:MaintenanceWindowActive = $True
 
-    if ($MaintenanceWindowConfig) {
+    if ($MaintenanceWindowConfig -and (-not($TSEnv))) {
         $MaintenanceWindowTest = Get-MaintenanceWindow -StartTime $MaintenanceWindowConfig.Start -EndTime $MaintenanceWindowConfig.End -EffectiveDateTime $MaintenanceWindowConfig.EffectiveDateTime -UTC $MaintenanceWindowConfig.UTC -Verbose
         $Global:MaintenanceWindowEnabled = $MaintenanceWindowTest.MaintenanceWindowEnabled
         $Global:MaintenanceWindowActive = $MaintenanceWindowTest.MaintenanceWindowActive
@@ -67,5 +69,10 @@ function Start-cChocoConfig {
     }
     else {
         Write-Log -Severity 'Warning' -Message "No Defined Maintenance Window"
+    }
+    if ($TSEnv) {
+        Write-Log -Severity 'Information' -Message "TaskSeqence Environment Detected, overriding maintennce window settings"
+        Write-Log -Severity 'Information' -Message "MaintenanceWindowEnabled: $($MaintenanceWindowEnabled)"
+        Write-Log -Severity 'Information' -Message "MaintenanceWindowActive: $($MaintenanceWindowActive)"
     }
 }
