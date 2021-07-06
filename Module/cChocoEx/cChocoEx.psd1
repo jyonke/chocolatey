@@ -4,7 +4,7 @@
 
     Author = 'Jonathan Yonke <jon.yonke@gmail.com>'
 
-    ModuleVersion = '0.0.2.03'
+    ModuleVersion = '0.0.2.04'
 
     # Use the New-Guid command to generate a GUID, and copy/paste into the next line
     GUID = 'fa3aecec-1a56-443c-8fb9-13ee275f1391'
@@ -17,7 +17,7 @@
     PowerShellVersion = '3.0'
 
     # Which PowerShell functions are exported from your module? (eg. Get-CoolObject)
-    FunctionsToExport = @('Start-cChocoEx','Get-cChocoExRing','Set-cChocoExRing','Update-cChocoEx')
+    FunctionsToExport = @('Start-cChocoEx','Get-cChocoExRing','Set-cChocoExRing','Update-cChocoEx','Get-cChocoExLog','Get-cChocoExConfig','Get-cChocoExFeature','Get-cChocoExMaintenanceWindow','Get-cChocoExPackageInstall','Get-cChocoExSource')
 
     # Which PowerShell aliases are exported from your module? (eg. gco)
     AliasesToExport = @('')
