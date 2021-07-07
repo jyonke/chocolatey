@@ -6,6 +6,9 @@ function Start-cChocoSource {
         $ConfigImport
     )
 
+    #Evaluate VPN Status
+    $VPNStatus = Get-VPNStatus
+
     Write-Log -Severity "Information" -Message "cChocoSource:Validating Chocolatey Sources are Setup"
     $ModulePath = (Join-Path "$ModuleBase\DSCResources" "cChocoSource")
     Import-Module $ModulePath
@@ -23,7 +26,25 @@ function Start-cChocoSource {
             Ensure   = $Configuration.Ensure
             User     = $Configuration.User
             KeyFile  = $Configuration.KeyFile
+            VPN      = $Configuration.VPN
             Warning  = $null
+        }
+
+        #Evaluate and Enforce VPN Restrictions
+        if ($null -ne $Configuration.VPN) {
+            if ($Configuration.VPN -eq $false -and $VPNStatus) {
+                $Configuration.Remove("VPN")
+                $Object.Warning = "Configuration restricted when VPN is connected"
+                $Configuration.Ensure = 'Absent'
+                $Object.Ensure = 'Absent'
+            }
+            if ($Configuration.VPN -eq $true -and -not($VPNStatus)) {
+                $Configuration.Remove("VPN")
+                $Object.Warning = "Configuration restricted when VPN is not established"
+                $Configuration.Ensure = 'Absent'
+                $Object.Ensure = 'Absent'
+            }
+            $Configuration.Remove("VPN")
         }
 
         #Create PSCredential from key pair if defined
@@ -65,6 +86,7 @@ function Start-cChocoSource {
         Write-Log -Severity 'Information' -Message "Source: $($_.Source)"
         Write-Log -Severity 'Information' -Message "User: $($_.User)"
         Write-Log -Severity 'Information' -Message "KeyFile: $($_.KeyFile)"
+        Write-Log -Severity 'Information' -Message "VPN: $($_.VPN)"
         if ($_.Warning) {
             Write-Log -Severity 'Warning' -Message "$($_.Warning)"
         }

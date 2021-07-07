@@ -32,7 +32,7 @@ function Get-cChocoExSource {
                     User     = $_.User
                     Password = $_.Password
                     KeyFile  = $_.KeyFile
-                    
+                    VPN      = $_.VPN
                 }
             }
         }
