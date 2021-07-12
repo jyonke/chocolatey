@@ -36,11 +36,11 @@ function Get-cChocoExPackageInstall {
                     MinimumVersion            = $_.MinimumVersion
                     Ensure                    = $_.Ensure
                     AutoUpgrade               = $_.AutoUpgrade
+                    Params                    = $_.Params
                     ChocoParams               = $_.ChocoParams
                     OverrideMaintenanceWindow = $_.OverrideMaintenanceWindow
                     VPN                       = $_.VPN
                     Ring                      = $_.Ring
-
                 }
             }
         }
