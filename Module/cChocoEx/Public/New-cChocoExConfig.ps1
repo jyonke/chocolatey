@@ -22,7 +22,7 @@ function New-cChocoExConfig {
             "MaintenanceWindow"
         )
         [array]$HashTableArray = @()
-
+        $ExportString = "@{`n"
         $Absent = New-Object System.Management.Automation.Host.ChoiceDescription '&Absent'
         $Present = New-Object System.Management.Automation.Host.ChoiceDescription '&Present'
         $SelectTrue = New-Object System.Management.Automation.Host.ChoiceDescription '&True'
@@ -30,8 +30,6 @@ function New-cChocoExConfig {
         $EnsureOptions = [System.Management.Automation.Host.ChoiceDescription[]]($Present, $Absent)
         $TrueFalseOptions = [System.Management.Automation.Host.ChoiceDescription[]]($SelectTrue, $SelectFalse)
         $Title = 'cChocoEx - Desired State'
-
-
         $cChocoConfigSelections = $cChocoConfigOptions | Out-GridView -Title "cChocoConfig Options" -OutputMode Multiple
     }
     
@@ -73,6 +71,15 @@ function New-cChocoExConfig {
                     End               = $End
                     UTC               = $UTC
                 }
+                $ExportString += @"
+    '$ConfigName' = @{
+        ConfigName        = '$ConfigName'
+        EffectiveDateTime = '$EffectiveDateTime'
+        Start             = '$Start'
+        End               = '$End'
+        UTC               = '$UTC'
+    }`n
+"@
             }
             else {
                 Write-Host "ConfigName: $_"
@@ -91,11 +98,19 @@ function New-cChocoExConfig {
                     Ensure     = $Ensure
                     Value      = $Value
                 }
+                $ExportString += @"
+    '$ConfigName' = @{
+        ConfigName = '$ConfigName'
+        Ensure     = '$Ensure'
+        Value      = '$Value'
+    }`n
+"@
             }
         }
+        $ExportString += "`n}"
     }
     
     end {
-        Export-PowerShellDataFile -Obj $HashTableArray -Path $Path
+        $ExportString | Set-Content -Path $Path
     }
 }
