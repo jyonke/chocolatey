@@ -94,6 +94,5 @@ function New-cChocoExSourceFile {
         catch {
             $_.Exception.Message
         }
-
     }
 }

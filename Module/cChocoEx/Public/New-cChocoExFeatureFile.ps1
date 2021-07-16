@@ -1,10 +1,14 @@
-function New-cChocoExFeature {
+function New-cChocoExFeatureFile {
     [CmdletBinding()]
     param (
         # Path of Output File
         [Parameter(Mandatory)]
         [string]
-        $Path
+        $Path,
+        # NoClobber
+        [Parameter()]
+        [switch]
+        $NoClobber
     )
     
     begin {
@@ -80,6 +84,20 @@ function New-cChocoExFeature {
     }
     
     end {
-        $ExportString | Set-Content -Path $Path
+        try {
+            if ($NoClobber -and (Test-Path -Path $Path)) {
+                Write-Warning "File Already Exists and NoClobber Specified. Requesting Alternative Path"
+                $Path = Read-Host -Prompt "Path"
+                $ExportString | Set-Content -Path $Path
+            }
+            else {
+                $ExportString | Set-Content -Path $Path
+            }
+            $FullPath = (Get-Item -Path $Path).Fullname
+            Write-Host "File Wriiten to $FullPath"
+        }
+        catch {
+            $_.Exception.Message
+        }
     }
 }
