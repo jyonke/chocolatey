@@ -2,7 +2,7 @@
 #Requires -RunAsAdministrator
 
 $NuGetRepositoryName = 'nuget.lvl12.com'
-$NugetRepositoryURI = 'https://nuget.lvl12.com/repository/nuget-ps/'
+$NugetRepositoryURI = 'https://nuget.lvl12.com/repository/nuget-ps-group/'
 $cChocoExParamters = @{
     #ChocoConfig                 = ''
     ChocoDownloadUrl            = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.10.15.nupkg'
@@ -32,7 +32,6 @@ $RepositoryData = @{
     InstallationPolicy        = 'Trusted'
     PackageManagementProvider = 'nuget'
     ErrorAction               = 'SilentlyContinue'
-    Verbose                   = $true
 }
 if ($RepositoryData.SourceLocation -eq 'https://www.powershellgallery.com/api/v2') {
     Get-PSRepository | Where-Object {$_.SourceLocation -eq $PSRepositoryData.SourceLocation} | Set-PSRepository -InstallationPolicy Trusted
