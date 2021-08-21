@@ -13,7 +13,7 @@
 # limitations under the License.
 
 @{
-    "contoso"  = @{
+    "contoso"    = @{
         Name     = "contoso.com"
         Priority = 0
         Source   = "https://contoso.com/repository/nuget-hosted/"
@@ -27,5 +27,6 @@
         Priority = 10
         Source   = 'https://chocolatey.org/api/v2/'
         Ensure   = 'Present'
+        VPN      = $false
     }
 }
