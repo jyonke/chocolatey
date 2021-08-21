@@ -16,7 +16,7 @@ $cChocoExParamters = @{
     #PackageConfig               = ''
     #RandomDelay                 = $null
     #SettingsURI                 = ''
-    #SourcesConfig               = ''
+    SourcesConfig               = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/sources/sources_lvl12.com.psd1'
     #WipeCache                   = $null
 }
 
