@@ -32,9 +32,13 @@ $RepositoryData = @{
     InstallationPolicy        = 'Trusted'
     PackageManagementProvider = 'nuget'
     ErrorAction               = 'SilentlyContinue'
-    Verbose                   = $true
 }
-Register-PSRepository @RepositoryData
+if ($RepositoryData.SourceLocation -eq 'https://www.powershellgallery.com/api/v2') {
+    Get-PSRepository | Where-Object {$_.SourceLocation -eq $PSRepositoryData.SourceLocation} | Set-PSRepository -InstallationPolicy Trusted
+}
+else {
+    Register-PSRepository @RepositoryData
+}
 
 #Install and Update cChocoEx
 if (Get-Module -Name 'cChocoEx') {
