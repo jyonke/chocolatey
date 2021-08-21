@@ -42,12 +42,12 @@ else {
 
 #Install and Update cChocoEx
 if (Get-Module -Name 'cChocoEx') {
-    Update-Module -Name 'cChocoEx' -Verbose
+    Update-Module -Name 'cChocoEx'
 }
 else { 
-    Install-Module -Name 'cChocoEx' -Repository $RepositoryData.Name -Force -Verbose
+    Install-Module -Name 'cChocoEx' -Repository $RepositoryData.Name -Force
 }
-Import-Module -Name 'cChocoEx' -Force -Verbose
+Import-Module -Name 'cChocoEx' -Force
 
 #Run cChocoEx
 Start-cChocoEx @cChocoExParamters 
