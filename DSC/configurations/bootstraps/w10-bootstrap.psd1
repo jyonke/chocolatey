@@ -4,7 +4,7 @@
 $NuGetRepositoryName = 'nuget.lvl12.com'
 $NugetRepositoryURI = 'https://nuget.lvl12.com/repository/nuget-ps-group/'
 $cChocoExParamters = @{
-    #ChocoConfig                 = ''
+    ChocoConfig                 = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/configs/w10-default.psd1'
     ChocoDownloadUrl            = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.10.15.nupkg'
     ChocoInstallScriptUrl       = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
     #FeatureConfig               = ''

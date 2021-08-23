@@ -32,18 +32,22 @@
         Ensure = 'Present'
     }
     "microsoft-teams.install" = @{
-        Name   = "microsoft-teams.install"
-        Ensure = 'Present'
+        Name        = "microsoft-teams.install"
+        Ensure      = 'Present'
         AutoUpgrade = $true
     }
     "microsoft-edge"          = @{
-        Name   = "microsoft-edge"
-        Ensure = 'Present'
+        Name        = "microsoft-edge"
+        Ensure      = 'Present'
         AutoUpgrade = $true
     }
     "zoom"                    = @{
         Name        = "zoom"
         Ensure      = 'Present'
         AutoUpgrade = $true
+    }
+    'chocolateygui'           = @{
+        Name   = 'chocolateygui'
+        Ensure = 'Present'
     }
 }
