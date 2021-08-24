@@ -50,4 +50,16 @@
         Name   = 'chocolateygui'
         Ensure = 'Present'
     }
+    'citrix-workspace-broad'  = @{
+        Name           = 'citrix-workspace'
+        Ensure         = 'Present'
+        MinimumVersion = '21.5.0.48'
+        Ring           = 'Broad'
+    }
+    'citrix-workspace-fast'   = @{
+        Name        = 'citrix-workspace'
+        Ensure      = 'Present'
+        AutoUpgrade = $true
+        Ring        = 'Fast'
+    }
 }
