@@ -62,4 +62,10 @@
         AutoUpgrade = $true
         Ring        = 'Fast'
     }
+    'citrix-workspace-preview'   = @{
+        Name        = 'citrix-workspace'
+        Ensure      = 'Present'
+        AutoUpgrade = $true
+        Ring        = 'preview'
+    }
 }
