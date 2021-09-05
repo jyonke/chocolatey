@@ -3,9 +3,10 @@
 
 $NuGetRepositoryName = 'nuget.lvl12.com'
 $NugetRepositoryURI = 'https://nuget.lvl12.com/repository/nuget-ps-group/'
+$BootstrapUri = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/bootstraps/w10-bootstrap.psd1'
 $cChocoExParamters = @{
     ChocoConfig                 = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/DSC/configurations/configs/w10-default.psd1'
-    ChocoDownloadUrl            = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.10.15.nupkg'
+    ChocoDownloadUrl            = 'https://github.com/jyonke/chocolatey/raw/master/Install/chocolatey.0.11.1.nupkg'
     ChocoInstallScriptUrl       = 'https://raw.githubusercontent.com/jyonke/chocolatey/master/Install/install.ps1'
     #FeatureConfig               = ''
     #InstallDir                  = ''
@@ -47,6 +48,11 @@ else {
     Install-Module -Name 'cChocoEx' -Repository $RepositoryData.Name -Force
 }
 Import-Module -Name 'cChocoEx' -Force
+
+#Update cChocoEx Bootstrap
+if ($BootstrapUri) {
+    Update-cChocoExBootstrap -Uri $BootstrapUri
+}
 
 #Run cChocoEx
 Start-cChocoEx @cChocoExParamters 
