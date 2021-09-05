@@ -15,7 +15,7 @@
 @{
     "nuget.lvl12.com"  = @{
         Name     = "nuget.lvl12.com"
-        Priority = 0
+        Priority = 1
         Source   = "https://nuget.lvl12.com/repository/nuget-group/"
         Ensure   = "Present"
         User     = 'public'
